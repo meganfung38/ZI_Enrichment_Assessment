@@ -1,5 +1,5 @@
 from simple_salesforce import Salesforce
-from config import Config
+from config.config import Config
 
 
 class SalesforceService:

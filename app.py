@@ -1,5 +1,5 @@
 from flask import Flask
-from config import config
+from config.config import config
 from routes.api_routes import api_bp
 import os
 

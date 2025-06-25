@@ -21,7 +21,7 @@
 
 ### **Solution**
 
-* Conduct a quality assessment of ZoomInfo’s output by developing an AI driven confidence rating system for enriched records– paired with explanations to ensure transparency and actionability   
+* Conduct a quality assessment of ZoomInfo's output by developing an AI driven confidence rating system for enriched records– paired with explanations to ensure transparency and actionability   
 * Steps:    
 1. Collect ZoomInfo-Enriched Records  
 * Columns to query: 
@@ -75,5 +75,4 @@
 5. Explainability   
 * Provide clear and concise explanations for why a particular confidence level was assigned  
 * Explanation layer should help build trust in the system and enable sales or operation teams to take actions accordingly  
-* A correction for incorrect fields
-
+* A correction for incorrect fields 
