@@ -24,36 +24,39 @@
 * Conduct a quality assessment of ZoomInfo’s output by developing an AI driven confidence rating system for enriched records– paired with explanations to ensure transparency and actionability   
 * Steps:    
 1. Collect ZoomInfo-Enriched Records  
-* Columns to query:   
-  * *Demand Funnel : Lead : Lead ID*   
-  * *RTLM Country*   
-  * *RTLM Channel*   
-  * *Demand Funnel : Lead : Account Name* (enriched)   
-  * *Demand Funnel : Lead : Email* (input information for enrichment)   
-  * *Demand Funnel : Lead : Website* (enriched or filled out by seller)   
-  * *Demand Funnel : Lead : ZI Employees* (enriched)   
-  * *Demand Funnel : Lead : ZI Enrichment Status* (whether lead was enriched)  
-* Flags to look out for:   
-  * *Demand Funnel : Lead : ZI Employees* \> 100 but *Demand Funnel : Lead : Account Name* NOT POPULATED  
-    * Accounts in the RC TAM (total addressable market) base include all accounts with 100+ employees  
-    * This account should be enriched with an account name or is being incorrectly enriched for employee number  
-  * *Demand Funnel : Lead : Email* has free email domain (hotmail, gmail, etc.) and *Demand Funnel : Lead : Website* NOT POPULATED and enriching with *Demand Funnel : Lead : Account Name* POPULATED and *Demand Funnel : Lead : ZI Employees* \> 100   
-    * Why are accounts with ambiguous email domains and no websites being enriched with an Account name (company) and other ZI data?   
+* Columns to query: 
+
+| SFDC Column | Query ID  |
+| :---- | :---- |
+| *Demand Funnel : Lead : Lead ID* | Id |
+| *RTLM Channel*  | First\_Channel\_\_c |
+| *Demand Funnel : Lead : Account Name (enriched)*  | ZI\_Company\_Name\_\_c |
+| *Demand Funnel : Lead : Email (input information for enrichment)*  | Email |
+| *Demand Funnel : Lead : Website (enriched or filled out by seller)*  | Website |
+| *Demand Funnel : Lead : ZI Employees (enriched)*  | ZI\_Employees\_\_c |
+| *Demand Funnel : Lead : ZI Enrichment Status (whether lead was enriched)* | LS\_Enrichment\_Status\_\_c |
+
+* Flags to look out for: 
+
+| Flags | Meaning  |
+| :---- | :---- |
+| ZI\_Employees\_\_c \> 100 but ZI\_Company\_Name\_\_c NOT Populated | Accounts in the RC TAM (total addressable market) base include all accounts with 100+ employees This account should be enriched with an account name or is being incorrectly enriched for employee number |
+| Email has free email domain and Website NOT POPULATED and ZI\_Company\_Name\_\_c POPULATED and ZI\_Employees\_\_c \> 100 | Why are accounts with ambiguous email domains and no websites being enriched with an Account name (company) and other ZI data?  |
+
 2. Verify Data Accuracy \+ Information Discovery    
-* Inspect *Demand Funnel : Lead : Website* and *Demand Funnel : Lead : ZI Employees*  
-  * Try to populate *Demand Funnel : Lead : Account Name* for RC TAM base  
-* Inspect *Demand Funnel : Lead : Email*  
-  * If there is additional information (company name) in email domain → use to infer *Demand Funnel : Lead : Website* and *Demand Funnel : Lead : Account Name*  
+* Inspect Website and ZI\_Employees\_\_c  
+  * Try to populate ZI\_Company\_Name\_\_c for RC TAM base  
+* Inspect Email  
+  * If there is additional information (company name) in email domain → use to infer Website and ZI\_Company\_Name\_\_c  
   * Try to populate other fields using inferred information   
 * Cross check each record with sources  
   * Public databases (LinkedIn, etc.), internal CRM or sales data  
-  * Does the *Demand Funnel : Lead : Email* match the enriched data?   
+  * Does the Email match the enriched data?   
 3. Impact Assessment   
 * Evaluate whether ZoomInfo enriched data has led to better sales outcomes in the past  
 * Cohorts:  
-  * ZoomInfo-Enriched Leads– *Demand Funnel : Lead : ZI Enrichment Status* is SUCCESS  
-  * Non-ZoomInfo Leads– *Demand Funnel : Lead : ZI Enrichment Status* is not SUCCESS  
-  *   
+  * ZoomInfo-Enriched Leads– LS\_Enrichment\_Status\_\_c is SUCCESS  
+  * Non-ZoomInfo Leads– LS\_Enrichment\_Status\_\_c is not SUCCESS  
 * Analyze key sales metrics:  
   * Conversion rate– % of leads that turn into opportunities or deals   
   * Speed to contact– how quickly a rep follows up with a lead   
@@ -73,3 +76,4 @@
 * Provide clear and concise explanations for why a particular confidence level was assigned  
 * Explanation layer should help build trust in the system and enable sales or operation teams to take actions accordingly  
 * A correction for incorrect fields
+
