@@ -85,9 +85,35 @@ curl http://localhost:5000/lead/00Q5e00000ABC123
 curl "http://localhost:5000/leads?limit=50&where=Email!=null"
 ```
 
+### Example Response
+
+```json
+{
+  "status": "success",
+  "message": "Lead retrieved successfully with analysis",
+  "lead": {
+    "Id": "00Q5e00000ABC123",
+    "First_Channel__c": "Website",
+    "ZI_Company_Name__c": "Example Corp",
+    "Email": "john.doe@gmail.com",
+    "Website": null,
+    "ZI_Employees__c": 250,
+    "LS_Enrichment_Status__c": "SUCCESS",
+    "not_in_TAM": false,
+    "suspicious_enrichment": true
+  }
+}
+```
+
+In this example:
+- `not_in_TAM: false` - Company name is populated, so it's in TAM base
+- `suspicious_enrichment: true` - Gmail email + no website + company name + >100 employees suggests potential enrichment issue
+
 ## Lead Fields Returned
 
 The API returns the following ZoomInfo-related fields:
+
+### **Core Lead Data**
 - `Id` - Salesforce Lead ID
 - `First_Channel__c` - First channel information
 - `ZI_Company_Name__c` - ZoomInfo company name
@@ -95,6 +121,14 @@ The API returns the following ZoomInfo-related fields:
 - `Website` - Company website
 - `ZI_Employees__c` - ZoomInfo employee count
 - `LS_Enrichment_Status__c` - Lead enrichment status
+
+### **Quality Assessment Flags**
+- `not_in_TAM` - Boolean indicating if lead should be in RC TAM base
+  - `true` when `ZI_Employees__c > 100` but `ZI_Company_Name__c` is null
+  - Suggests incomplete enrichment for companies that should be in Total Addressable Market
+- `suspicious_enrichment` - Boolean indicating potentially incorrect enrichment
+  - `true` when email has free domain (gmail, yahoo, etc.) + no website + company name populated + >100 employees
+  - Suggests enrichment may have incorrectly associated personal email with large company
 
 ## Development
 
