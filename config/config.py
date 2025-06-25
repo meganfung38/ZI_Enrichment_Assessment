@@ -15,6 +15,11 @@ class Config:
     SF_SECURITY_TOKEN = os.getenv('SF_SECURITY_TOKEN')
     SF_DOMAIN = os.getenv('SF_DOMAIN', 'login')
     
+    # OpenAI Configuration
+    OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+    OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'gpt-3.5-turbo')
+    OPENAI_MAX_TOKENS = int(os.getenv('OPENAI_MAX_TOKENS', '1000'))
+    
     @staticmethod
     def validate_salesforce_config():
         """Validate that all required Salesforce credentials are present"""
@@ -28,6 +33,13 @@ class Config:
         if missing_vars:
             raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
         
+        return True
+    
+    @staticmethod
+    def validate_openai_config():
+        """Validate that OpenAI API key is present"""
+        if not os.getenv('OPENAI_API_KEY'):
+            raise ValueError("Missing required environment variable: OPENAI_API_KEY")
         return True
 
 class DevelopmentConfig(Config):

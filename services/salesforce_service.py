@@ -1,5 +1,6 @@
 from simple_salesforce import Salesforce
 from config.config import Config
+from typing import Optional
 
 
 class SalesforceService:
@@ -13,7 +14,7 @@ class SalesforceService:
     }
     
     def __init__(self):
-        self.sf = None
+        self.sf: Optional[Salesforce] = None
         self._is_connected = False
     
     def connect(self):
@@ -50,6 +51,7 @@ class SalesforceService:
                 return False, "Failed to establish connection"
             
             # Simple test - query 5 Lead IDs
+            assert self.sf is not None  # Type hint for linter
             query_result = self.sf.query("SELECT Id FROM Lead LIMIT 5")
             
             # If we get here, connection is working and we can query data
@@ -136,6 +138,7 @@ class SalesforceService:
             WHERE Id = '{}'
             """.format(lead_id)
             
+            assert self.sf is not None  # Type hint for linter
             result = self.sf.query(query)
             
             if result['totalSize'] == 0:
@@ -177,6 +180,7 @@ class SalesforceService:
             # Add limit
             base_query += f" LIMIT {limit}"
             
+            assert self.sf is not None  # Type hint for linter
             result = self.sf.query(base_query)
             
             # Clean up records by removing Salesforce metadata and add flags

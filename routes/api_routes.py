@@ -1,5 +1,7 @@
 from flask import Blueprint, jsonify, request
 from services.salesforce_service import SalesforceService
+from services.openai_service import test_openai_connection, test_openai_completion, get_openai_config
+from config.config import Config
 
 # Create blueprint for API routes
 api_bp = Blueprint('api', __name__)
@@ -16,7 +18,10 @@ def index():
         "status": "running",
         "endpoints": {
             "health": "/health",
-            "salesforce_test": "/test-salesforce-connection", 
+            "debug_config": "/debug-config",
+            "salesforce_test": "/test-salesforce-connection",
+            "openai_test": "/test-openai-connection",
+            "openai_completion": "/test-openai-completion",
             "get_lead": "/lead/<lead_id>",
             "query_leads": "/leads"
         }
@@ -29,6 +34,31 @@ def health_check():
         "status": "healthy",
         "service": "ZoomInfo Quality Assessment API"
     })
+
+@api_bp.route('/debug-config')
+def debug_config():
+    """Debug endpoint to check configuration (for development only)"""
+    try:
+        return jsonify({
+            "salesforce": {
+                "username_present": bool(Config.SF_USERNAME),
+                "password_present": bool(Config.SF_PASSWORD),
+                "token_present": bool(Config.SF_SECURITY_TOKEN),
+                "domain": Config.SF_DOMAIN
+            },
+            "openai": {
+                "api_key_present": bool(Config.OPENAI_API_KEY),
+                "api_key_length": len(Config.OPENAI_API_KEY) if Config.OPENAI_API_KEY else 0,
+                "api_key_starts_with_sk": Config.OPENAI_API_KEY.startswith('sk-') if Config.OPENAI_API_KEY else False,
+                "model": Config.OPENAI_MODEL,
+                "max_tokens": Config.OPENAI_MAX_TOKENS
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Configuration error: {str(e)}"
+        }), 500
 
 @api_bp.route('/test-salesforce-connection')
 def test_salesforce_connection():
@@ -112,4 +142,63 @@ def query_leads():
         return jsonify({
             "status": "error",
             "message": f"Unexpected error: {str(e)}"
-        }), 500 
+        }), 500
+
+@api_bp.route('/test-openai-connection')
+def test_openai_connection_endpoint():
+    """Test endpoint to verify OpenAI API connection"""
+    try:
+        is_connected, message = test_openai_connection()
+        
+        if is_connected:
+            config_info = get_openai_config()
+            return jsonify({
+                "status": "success",
+                "message": message,
+                "configuration": config_info
+            })
+        else:
+            return jsonify({
+                "status": "error",
+                "message": message,
+                "debug_info": {
+                    "api_key_present": bool(Config.OPENAI_API_KEY),
+                    "api_key_length": len(Config.OPENAI_API_KEY) if Config.OPENAI_API_KEY else 0,
+                    "api_key_starts_with_sk": Config.OPENAI_API_KEY.strip().startswith('sk-') if Config.OPENAI_API_KEY else False
+                }
+            }), 500
+            
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Unexpected error: {str(e)}"
+        }), 500
+
+@api_bp.route('/test-openai-completion')
+def test_openai_completion_endpoint():
+    """Test endpoint to verify OpenAI completion generation"""
+    try:
+        # Get optional prompt from query parameters
+        prompt = request.args.get('prompt', 'Hello! Please respond with "OpenAI connection test successful."')
+        
+        completion, message = test_openai_completion(prompt)
+        
+        if completion:
+            return jsonify({
+                "status": "success",
+                "message": message,
+                "prompt": prompt,
+                "completion": completion,
+                "configuration": get_openai_config()
+            })
+        else:
+            return jsonify({
+                "status": "error",
+                "message": message
+            }), 500
+            
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Unexpected error: {str(e)}"
+        }), 500

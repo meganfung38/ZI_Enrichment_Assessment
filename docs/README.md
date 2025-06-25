@@ -1,6 +1,19 @@
 # ZoomInfo Quality Assessment API
 
-A Flask API for assessing the quality and reliability of ZoomInfo-enriched lead data.
+A Flask API for assessing the quality and reliability of ZoomInfo-enriched lead data with OpenAI-powered confidence scoring.
+
+## Latest Updates (January 2025)
+
+✅ **Dependencies Updated to Latest Versions**
+- **Flask 3.1.1** - Latest stable with improved performance and security
+- **simple-salesforce 1.12.6** - Enhanced JWT support, Bulk2.0 features, OAuth2 endpoints
+- **python-dotenv 1.0.1** - Latest bug fixes and stability improvements
+- **OpenAI 1.90.0+** - Latest API features and improved response handling
+
+🚀 **New Features**
+- OpenAI integration for AI-powered confidence scoring
+- Enhanced type hints and linter error resolution
+- Improved error handling and connection management
 
 ## Project Structure
 
@@ -17,7 +30,8 @@ ZI_Enrichment_Assessment/
 ├── .env                     # Environment variables (not in git)
 ├── services/                # Business logic services
 │   ├── __init__.py
-│   └── salesforce_service.py  # Salesforce API integration
+│   ├── salesforce_service.py  # Salesforce API integration
+│   └── openai_service.py      # OpenAI API integration
 └── routes/                  # API route definitions
     ├── __init__.py
     └── api_routes.py        # All API endpoints
@@ -31,7 +45,7 @@ python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
-### 2. Install Dependencies
+### 2. Install Dependencies (Updated Versions)
 ```bash
 pip install -r config/requirements.txt
 ```
@@ -49,6 +63,7 @@ Required environment variables:
 - `SF_PASSWORD`: Your Salesforce password  
 - `SF_SECURITY_TOKEN`: Your Salesforce security token
 - `SF_DOMAIN`: `login` for production, `test` for sandbox
+- `OPENAI_API_KEY`: Your OpenAI API key (for confidence scoring)
 
 ### 4. Run the Application
 ```bash
@@ -64,9 +79,14 @@ The API will be available at `http://localhost:5000`
 
 ### Health Check
 - **GET** `/health` - Service health status
+- **GET** `/debug-config` - Configuration debugging information
 
 ### Salesforce Connection
 - **GET** `/test-salesforce-connection` - Test Salesforce connectivity
+
+### OpenAI Integration
+- **GET** `/test-openai-connection` - Test OpenAI API connectivity
+- **GET** `/test-openai-completion` - Test OpenAI completion generation
 
 ### Lead Data
 - **GET** `/lead/<lead_id>` - Get specific lead by ID
@@ -75,14 +95,18 @@ The API will be available at `http://localhost:5000`
 ### Example Usage
 
 ```bash
-# Test connection
+# Test connections
 curl http://localhost:5000/test-salesforce-connection
+curl http://localhost:5000/test-openai-connection
 
-# Get a specific lead
+# Get a specific lead with quality analysis
 curl http://localhost:5000/lead/00Q5e00000ABC123
 
 # Query leads with filters
 curl "http://localhost:5000/leads?limit=50&where=Email!=null"
+
+# Test OpenAI completion
+curl http://localhost:5000/test-openai-completion
 ```
 
 ### Example Response
