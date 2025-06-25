@@ -53,6 +53,38 @@ class SalesforceService:
             
         except Exception as e:
             return False, f"Connection failed: {str(e)}"
+    
+    def get_lead_by_id(self, lead_id):
+        """Get specific Lead fields by Lead ID"""
+        try:
+            if not self.sf:
+                if not self.connect():
+                    return None, "Failed to establish Salesforce connection"
+            
+            # Query for specific ZoomInfo fields
+            query = """
+            SELECT Id, First_Channel__c, ZI_Company_Name__c, Email, Website, 
+                   ZI_Employees__c, LS_Enrichment_Status__c
+            FROM Lead 
+            WHERE Id = '{}'
+            """.format(lead_id)
+            
+            result = self.sf.query(query)
+            
+            if result['totalSize'] == 0:
+                return None, f"No Lead found with ID: {lead_id}"
+            
+            # Return the first (and should be only) record
+            lead_record = result['records'][0]
+            
+            # Remove Salesforce metadata from the response
+            if 'attributes' in lead_record:
+                del lead_record['attributes']
+                
+            return lead_record, "Lead retrieved successfully"
+            
+        except Exception as e:
+            return None, f"Error retrieving Lead: {str(e)}"
 
 # Initialize Salesforce service
 sf_service = SalesforceService()
@@ -88,6 +120,30 @@ def test_salesforce_connection():
                 "status": "error",
                 "message": message
             }), 500
+            
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Unexpected error: {str(e)}"
+        }), 500
+
+@app.route('/lead/<lead_id>')
+def get_lead(lead_id):
+    """Get specific Lead data by Lead ID"""
+    try:
+        lead_data, message = sf_service.get_lead_by_id(lead_id)
+        
+        if lead_data:
+            return jsonify({
+                "status": "success",
+                "message": message,
+                "lead": lead_data
+            })
+        else:
+            return jsonify({
+                "status": "error",
+                "message": message
+            }), 404
             
     except Exception as e:
         return jsonify({
