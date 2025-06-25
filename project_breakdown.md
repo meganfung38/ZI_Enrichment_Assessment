@@ -73,28 +73,3 @@
 * Provide clear and concise explanations for why a particular confidence level was assigned  
 * Explanation layer should help build trust in the system and enable sales or operation teams to take actions accordingly  
 * A correction for incorrect fields
-
-### **Tokens**
-
-* OPENAI\_API\_KEY=sk-proj-h\_nRtJ0rlXpHxYUPy14YMJk2Mycddr74btgo7Y6Q8UqsjM1tC\_TEbQPxlr6YeB5CkP2H9u6f\_VT3BlbkFJqaGCrJjT0tUmUV33syJ2BL5PUEvYgltfi4cSG1GPee-Cg3niLI7Yy4\_iayQnl4rQ2mgqgo9n8A
-
-### 
-
-### **Questions** 
-
-* Access  
-  * Where can I access ZoomInfo enriched records?   
-  * Will I need access to both SFDC and any intermediate systems to gather these records (other internal systems/ dbs)?   
-* Implementation   
-  * What format would you prefer this tool to take?   
-    * An API with UI?   
-    * A script/ backend tool/ prompt?   
-    * A report?   
-* Enrichment Identification   
-  * Is there a way to identify whether a specific SFDC lead or opportunity was enriched by ZoomInfo?   
-    * Which fields/ metadata should I be checking to confirm ZoomInfo involvement?   
-* Verification Sources   
-  * What external/ internal sources would you recommend I use to verify the accuracy of ZoomInfo data?   
-* Data Impact Evaluation   
-  * Do we track performance metrics for how much impact ZoomInfo records make?   
-  * Can you show me an example of what a ZoomInfo record looks like– what input information does RC provide and what information does ZoomInfo return?
