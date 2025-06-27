@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from services.salesforce_service import SalesforceService
-from services.openai_service import test_openai_connection, test_openai_completion, get_openai_config
+from services.openai_service import test_openai_connection, test_openai_completion, get_openai_config, generate_lead_confidence_assessment
 from config.config import Config
 
 # Create blueprint for API routes
@@ -23,7 +23,8 @@ def index():
             "openai_test": "/test-openai-connection",
             "openai_completion": "/test-openai-completion",
             "get_lead": "/lead/<lead_id>",
-            "query_leads": "/leads"
+            "query_leads": "/leads",
+            "lead_confidence": "/lead/<lead_id>/confidence"
         }
     })
 
@@ -197,6 +198,47 @@ def test_openai_completion_endpoint():
                 "message": message
             }), 500
             
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Unexpected error: {str(e)}"
+        }), 500
+
+@api_bp.route('/lead/<lead_id>/confidence')
+def get_lead_confidence_assessment(lead_id):
+    """Get lead data with AI-powered confidence assessment and explanation"""
+    try:
+        # First, get the lead data with flags and email domain
+        lead_data, sf_message = sf_service.get_lead_by_id(lead_id)
+        
+        if not lead_data:
+            return jsonify({
+                "status": "error",
+                "message": sf_message
+            }), 404
+        
+        # Generate confidence assessment using OpenAI
+        assessment, ai_message = generate_lead_confidence_assessment(lead_data)
+        
+        if not assessment:
+            return jsonify({
+                "status": "error",
+                "message": f"Failed to generate confidence assessment: {ai_message}",
+                "lead_data": lead_data  # Still return the lead data even if AI fails
+            }), 500
+        
+        # Return successful response with both lead data and assessment
+        return jsonify({
+            "status": "success",
+            "message": "Lead confidence assessment completed successfully",
+            "lead_data": lead_data,
+            "confidence_assessment": assessment,
+            "processing_info": {
+                "salesforce_message": sf_message,
+                "ai_message": ai_message
+            }
+        })
+        
     except Exception as e:
         return jsonify({
             "status": "error",

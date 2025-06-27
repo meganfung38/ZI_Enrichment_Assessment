@@ -12,6 +12,9 @@ def create_app(config_name=None):
     app = Flask(__name__)
     app.config.from_object(config[config_name])
     
+    # Configure JSON to not escape Unicode characters (for proper emoji display)
+    app.json.ensure_ascii = False
+    
     # Register blueprints
     app.register_blueprint(api_bp)
     

@@ -82,8 +82,18 @@ class SalesforceService:
         except (IndexError, AttributeError):
             return False
     
+    def _extract_email_domain(self, email):
+        """Extract domain from email address"""
+        if not email:
+            return None
+        try:
+            domain = email.split('@')[1].lower().strip()
+            return domain if domain else None
+        except (IndexError, AttributeError):
+            return None
+    
     def _analyze_lead_flags(self, lead_record):
-        """Analyze lead data and return business logic flags"""
+        """Analyze lead data and return business logic flags and email domain"""
         # Extract values with explicit None handling
         zi_employees = lead_record.get('ZI_Employees__c')
         zi_company_name = lead_record.get('ZI_Company_Name__c')
@@ -100,6 +110,9 @@ class SalesforceService:
         zi_company_name = zi_company_name.strip() if zi_company_name else None
         email = email.strip() if email else None
         website = website.strip() if website else None
+        
+        # Extract email domain
+        email_domain = self._extract_email_domain(email)
         
         # Flag 1: not_in_TAM
         # True when ZI_Employees__c > 100 AND ZI_Company_Name__c is null/empty
@@ -121,7 +134,8 @@ class SalesforceService:
         
         return {
             'not_in_TAM': not_in_tam,
-            'suspicious_enrichment': suspicious_enrichment
+            'suspicious_enrichment': suspicious_enrichment,
+            'email_domain': email_domain
         }
     
     def get_lead_by_id(self, lead_id):
