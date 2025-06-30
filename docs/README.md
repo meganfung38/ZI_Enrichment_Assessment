@@ -1,32 +1,47 @@
-# ZoomInfo Quality Assessment API
+# ZoomInfo Enrichment Quality Assessment API
 
-A Flask API for assessing the quality and reliability of ZoomInfo-enriched lead data with OpenAI-powered confidence scoring and intelligent explanations.
+A Flask API for assessing the quality and reliability of ZoomInfo-enriched lead data with OpenAI-powered confidence scoring, intelligent explanations, and professional Excel export capabilities.
 
 ## Latest Updates (January 2025)
 
-✅ **AI-Powered Confidence Scoring System**
-- **New Endpoint**: `/lead/<lead_id>/confidence` - Complete AI assessment with scores 0-100
+✅ **Professional Excel Export System**
+- **New Export Endpoints**: Download analysis results as formatted XLSX files
+- **Professional Formatting**: Color-coded confidence scores, bordered tables, proper column widths
+- **Summary Statistics**: Comprehensive analysis overview at the top of each report
+- **Visual Indicators**: Red highlighting for quality issues, green/yellow/red for confidence scores
+- **Automated Naming**: Timestamped filenames for easy organization
+
+✅ **Enhanced Analyze-Query Endpoint**
+- **Performance Optimized**: 10x faster execution through batch processing and query optimization
+- **Streamlined Interface**: Removed unnecessary options, always includes AI confidence scoring
+- **Two-Step Workflow**: Preview queries before running full analysis for better control
+- **Smart UI Controls**: Export buttons only enabled after successful analysis completion
+
+✅ **AI-Powered ZoomInfo Enrichment Assessment**
+- **Core Endpoint**: `/lead/<lead_id>/confidence` - Complete AI assessment with scores 0-100
 - **Smart Explanations**: Clear bullet-point rationale with emoji indicators (✅ ⚠️ ❌)
-- **Data Corrections**: AI suggests high-confidence fixes for incorrect data
-- **Intelligent Inferences**: AI fills gaps in missing enrichment data
+- **Data Corrections**: AI suggests high-confidence fixes for incorrect ZoomInfo data
+- **Intelligent Inferences**: AI fills gaps in missing ZoomInfo enrichment data
 - **Email Domain Analysis**: Automatic extraction and corporate vs. free domain validation
 
-✅ **Enhanced Data Analysis**
+✅ **Enhanced ZoomInfo Data Analysis**
 - **Extended Quality Flags**: Improved `suspicious_enrichment` and `not_in_TAM` detection
 - **Email Domain Field**: New `email_domain` returned for all lead queries
 - **Unicode JSON Support**: Proper emoji display in API responses
-- **Cross-Field Validation**: Advanced consistency checks between related fields
+- **Cross-Field Validation**: Advanced consistency checks between ZoomInfo enrichment fields
 
 ✅ **Dependencies Updated to Latest Versions**
 - **Flask 3.1.1** - Latest stable with improved performance and security
 - **simple-salesforce 1.12.6** - Enhanced JWT support, Bulk2.0 features, OAuth2 endpoints
 - **python-dotenv 1.0.1** - Latest bug fixes and stability improvements
 - **OpenAI 1.90.0+** - Latest API features and improved response handling
+- **openpyxl 3.1.5** - Excel file generation and professional formatting
 
 🚀 **Technical Improvements**
 - Enhanced type hints and linter error resolution
 - Improved error handling and connection management
 - Unicode-safe JSON serialization for international characters
+- Modular Excel service architecture for extensible reporting
 
 ## Project Structure
 
@@ -45,7 +60,8 @@ ZI_Enrichment_Assessment/
 ├── services/                # Business logic services
 │   ├── __init__.py
 │   ├── salesforce_service.py  # Salesforce API integration
-│   └── openai_service.py      # OpenAI API integration & confidence scoring
+│   ├── openai_service.py      # OpenAI API integration & confidence scoring
+│   └── excel_service.py       # Excel export and formatting service
 └── routes/                  # API route definitions
     ├── __init__.py
     └── api_routes.py        # All API endpoints
@@ -106,8 +122,17 @@ The API will be available at `http://localhost:5000`
 - **GET** `/lead/<lead_id>` - Get specific lead by ID with quality flags
 - **GET** `/leads?limit=100&where=<conditions>` - Query leads with filters
 
-#### 🆕 AI-Powered Confidence Assessment  
+#### ZoomInfo Enrichment Assessment
 - **GET** `/lead/<lead_id>/confidence` - **Complete AI assessment with confidence scoring**
+- **GET** `/lead/<lead_id>/confidence/export` - **Export single lead assessment to Excel**
+
+#### Bulk Analysis & Export
+- **POST** `/leads/analyze-query` - **Analyze multiple leads from SOQL query with AI scoring**
+- **POST** `/leads/analyze-query/export` - **Export bulk analysis results to Excel**
+- **POST** `/leads/preview-query` - **Preview SOQL query results before analysis**
+
+#### Web Interface
+- **GET** `/ui` - **Interactive web interface for testing and analysis**
 
 ### Example Usage
 
@@ -119,17 +144,31 @@ curl http://localhost:5000/test-openai-connection
 # Get basic lead data with quality flags and email domain
 curl http://localhost:5000/lead/00Q5e00000ABC123
 
-# 🆕 Get AI-powered confidence assessment (RECOMMENDED)
+# Get AI-powered ZoomInfo enrichment assessment (RECOMMENDED)
 curl http://localhost:5000/lead/00Q5e00000ABC123/confidence
+
+# Export single lead assessment to Excel
+curl http://localhost:5000/lead/00Q5e00000ABC123/confidence/export -o lead_assessment.xlsx
 
 # Query leads with filters
 curl "http://localhost:5000/leads?limit=50&where=Email!=null"
 
-# Test OpenAI completion
-curl http://localhost:5000/test-openai-completion
+# Use the web interface for bulk analysis and export (EASIEST)
+open http://localhost:5000/ui
+
+# Bulk analysis via API (for programmatic use)
+curl -X POST http://localhost:5000/leads/analyze-query \
+  -H "Content-Type: application/json" \
+  -d '{"soql_query": "SELECT Id FROM Lead WHERE Email LIKE '\''%@gmail.com'\''", "max_analyze": 10}'
+
+# Export bulk analysis to Excel
+curl -X POST http://localhost:5000/leads/analyze-query/export \
+  -H "Content-Type: application/json" \
+  -d '{"soql_query": "SELECT Id FROM Lead WHERE Email LIKE '\''%@gmail.com'\''", "max_analyze": 10}' \
+  -o bulk_analysis.xlsx
 ```
 
-### 🆕 Confidence Assessment Response Example
+### ZoomInfo Enrichment Assessment Response Example
 
 ```json
 {
@@ -204,20 +243,27 @@ The API returns the following ZoomInfo-related fields:
 - `ZI_Employees__c` - ZoomInfo employee count
 - `LS_Enrichment_Status__c` - Lead enrichment status
 
-### **🆕 Enhanced Analysis Fields**
-- `email_domain` - **NEW**: Extracted email domain for validation
+### **Enhanced ZoomInfo Analysis Fields**
+- `email_domain` - Extracted email domain for validation
 - `not_in_TAM` - Boolean indicating if lead should be in RC TAM base
   - `true` when `ZI_Employees__c > 100` but `ZI_Company_Name__c` is null
-  - Suggests incomplete enrichment for companies that should be in Total Addressable Market
-- `suspicious_enrichment` - Boolean indicating potentially incorrect enrichment
+  - Suggests incomplete ZoomInfo enrichment for companies that should be in Total Addressable Market
+- `suspicious_enrichment` - Boolean indicating potentially incorrect ZoomInfo enrichment
   - `true` when email has free domain (gmail, yahoo, etc.) + no website + company name populated + >100 employees
-  - Suggests enrichment may have incorrectly associated personal email with large company
+  - Suggests ZoomInfo enrichment may have incorrectly associated personal email with large company
 
-### **🆕 AI Confidence Assessment Fields**
-- `confidence_score` - Overall confidence rating (0-100)
-- `explanation_bullets` - 3-5 clear explanations with emoji indicators
-- `corrections` - High-confidence data fixes suggested by AI
-- `inferences` - Lower-confidence guesses for missing data
+### **AI-Powered ZoomInfo Assessment Fields**
+- `confidence_score` - Overall ZoomInfo enrichment confidence rating (0-100)
+- `explanation_bullets` - 3-5 clear explanations with emoji indicators for enrichment reliability
+- `corrections` - High-confidence fixes suggested by AI for ZoomInfo data
+- `inferences` - Lower-confidence guesses for missing ZoomInfo enrichment data
+
+### **Excel Export Features**
+- **Professional Formatting**: Color-coded confidence scores, bordered tables, proper column sizing
+- **Summary Statistics**: Analysis overview including total leads, issue percentages, average confidence
+- **Visual Indicators**: Red highlighting for quality issues, traffic light colors for confidence scores
+- **Comprehensive Data**: All lead fields, confidence assessments, explanations, corrections, and inferences
+- **Timestamped Files**: Automatic naming with date/time for easy organization
 
 ## Development
 

@@ -215,4 +215,238 @@ class SalesforceService:
             }, "Query executed successfully"
             
         except Exception as e:
-            return None, f"Error executing query: {str(e)}" 
+            return None, f"Error executing query: {str(e)}"
+
+    def preview_soql_query(self, soql_query, limit=100):
+        """Preview SOQL query results - just return Lead IDs and count"""
+        import time
+        start_time = time.time()
+        
+        try:
+            if not self.ensure_connection():
+                return None, "Failed to establish Salesforce connection"
+            
+            # Validate SOQL query contains Id field
+            if not self._validate_soql_query(soql_query):
+                return None, "SOQL query must include 'Id' in SELECT clause and cannot contain dangerous operations"
+            
+            # Add LIMIT to the query for preview if not already present
+            query_upper = soql_query.upper()
+            if 'LIMIT' not in query_upper:
+                preview_query = f"{soql_query} LIMIT {limit}"
+            else:
+                preview_query = soql_query
+            
+            # Execute the SOQL query to get lead IDs only
+            assert self.sf is not None  # Type hint for linter
+            query_result = self.sf.query(preview_query)
+            
+            execution_time = time.time() - start_time
+            
+            # Extract just the Lead IDs
+            lead_ids = [record['Id'] for record in query_result['records']]
+            
+            result = {
+                'total_found': query_result['totalSize'],
+                'preview_count': len(lead_ids),
+                'lead_ids': lead_ids,
+                'query_info': {
+                    'original_query': soql_query,
+                    'preview_query': preview_query,
+                    'execution_time': f"{execution_time:.2f}s",
+                    'has_more': not query_result['done']
+                }
+            }
+            
+            return result, f"Found {query_result['totalSize']} total leads, showing first {len(lead_ids)}"
+            
+        except Exception as e:
+            return None, f"Error previewing SOQL query: {str(e)}"
+
+    def analyze_leads_from_query(self, soql_query, max_analyze=100, include_ai_assessment=True):
+        """Analyze leads from a custom SOQL query with quality assessment and AI confidence scoring"""
+        import time
+        start_time = time.time()
+        
+        try:
+            if not self.ensure_connection():
+                return None, "Failed to establish Salesforce connection"
+            
+            # Validate SOQL query contains Id field
+            if not self._validate_soql_query(soql_query):
+                return None, "SOQL query must include 'Id' in SELECT clause and cannot contain dangerous operations"
+            
+            # Execute the SOQL query to get lead IDs only (much faster than query_all)
+            assert self.sf is not None  # Type hint for linter
+            
+            # Get only the IDs we need to analyze (limit the query from the start)
+            limited_query = f"{soql_query} LIMIT {max_analyze}"
+            id_result = self.sf.query(limited_query)
+            lead_ids_to_analyze = [record['Id'] for record in id_result['records']]
+            actual_analyze_count = len(lead_ids_to_analyze)
+            
+            # If no leads found, return early
+            if actual_analyze_count == 0:
+                return {
+                    'summary': {
+                        'total_query_results': 0,
+                        'leads_analyzed': 0,
+                        'leads_with_issues': 0,
+                        'not_in_tam_count': 0,
+                        'suspicious_enrichment_count': 0,
+                        'avg_confidence_score': 0
+                    },
+                    'leads': [],
+                    'query_info': {
+                        'original_query': soql_query,
+                        'execution_time': f"{time.time() - start_time:.2f}s",
+                        'total_found': 0,
+                        'analyzed_count': 0
+                    }
+                }, "No leads found matching the query"
+            
+            # For total count, we can estimate or get it if needed
+            # For now, we'll use the actual count we got (could be less than total if limited)
+            total_found = id_result['totalSize'] if not id_result.get('done', True) else actual_analyze_count
+            
+            # Process leads with AI confidence assessment
+            analyzed_leads = []
+            leads_with_issues = 0
+            not_in_tam_count = 0
+            suspicious_enrichment_count = 0
+            total_confidence_score = 0
+            successful_ai_assessments = 0
+            
+            # Import here to avoid circular imports
+            from services.openai_service import generate_lead_confidence_assessment
+            
+            # Get all lead data in one batch query (much faster!)
+            batch_leads = self._analyze_lead_batch(lead_ids_to_analyze, include_details=True)
+            
+            # Process each lead for AI assessment
+            for lead_data in batch_leads:
+                try:
+                    # Count basic quality issues
+                    if lead_data.get('not_in_TAM') or lead_data.get('suspicious_enrichment'):
+                        leads_with_issues += 1
+                    if lead_data.get('not_in_TAM'):
+                        not_in_tam_count += 1
+                    if lead_data.get('suspicious_enrichment'):
+                        suspicious_enrichment_count += 1
+                    
+                    # Generate AI confidence assessment if requested
+                    if include_ai_assessment:
+                        assessment, ai_message = generate_lead_confidence_assessment(lead_data)
+                        if assessment and assessment.get('confidence_score') is not None:
+                            lead_data['confidence_assessment'] = assessment
+                            lead_data['ai_assessment_status'] = 'success'
+                            total_confidence_score += assessment.get('confidence_score', 0)
+                            successful_ai_assessments += 1
+                        else:
+                            lead_data['confidence_assessment'] = None
+                            lead_data['ai_assessment_status'] = f'failed: {ai_message}'
+                    
+                    # Always include full lead data
+                    analyzed_leads.append(lead_data)
+                        
+                except Exception as e:
+                    print(f"Error processing lead {lead_data.get('Id', 'unknown')}: {str(e)}")
+                    continue
+            
+            execution_time = time.time() - start_time
+            avg_confidence_score = (total_confidence_score / successful_ai_assessments) if successful_ai_assessments > 0 else 0
+            
+            result = {
+                'summary': {
+                    'total_query_results': total_found,
+                    'leads_analyzed': actual_analyze_count,
+                    'leads_with_issues': leads_with_issues,
+                    'not_in_tam_count': not_in_tam_count,
+                    'suspicious_enrichment_count': suspicious_enrichment_count,
+                    'issue_percentage': round((leads_with_issues / actual_analyze_count) * 100, 2) if actual_analyze_count > 0 else 0,
+                    'avg_confidence_score': round(avg_confidence_score, 1),
+                    'ai_assessments_successful': successful_ai_assessments,
+                    'ai_assessments_failed': actual_analyze_count - successful_ai_assessments
+                },
+                'leads': analyzed_leads,
+                'query_info': {
+                    'original_query': soql_query,
+                    'execution_time': f"{execution_time:.2f}s",
+                    'total_found': total_found,
+                    'analyzed_count': actual_analyze_count,
+                    'skipped_count': total_found - actual_analyze_count,
+                    'include_ai_assessment': include_ai_assessment
+                }
+            }
+            
+            return result, f"Successfully analyzed {actual_analyze_count} of {total_found} leads from query with AI confidence scoring"
+            
+        except Exception as e:
+            return None, f"Error analyzing leads from query: {str(e)}"
+    
+    def _validate_soql_query(self, soql_query):
+        """Validate SOQL query for safety and required fields"""
+        if not soql_query:
+            return False
+        
+        # Convert to uppercase for checking
+        query_upper = soql_query.upper().strip()
+        
+        # Must be a SELECT query
+        if not query_upper.startswith('SELECT'):
+            return False
+        
+        # Must include Id field
+        if 'ID' not in query_upper or 'SELECT ID' not in query_upper.replace(',', ' ').replace('\n', ' '):
+            return False
+        
+        # Check for dangerous operations
+        dangerous_keywords = ['DELETE', 'UPDATE', 'INSERT', 'UPSERT', 'MERGE']
+        for keyword in dangerous_keywords:
+            if keyword in query_upper:
+                return False
+        
+        return True
+    
+    def _analyze_lead_batch(self, lead_ids, include_details=True):
+        """Analyze a batch of leads by their IDs"""
+        try:
+            # Build batch query for all lead IDs
+            ids_string = "', '".join(lead_ids)
+            batch_query = f"""
+            SELECT Id, First_Channel__c, ZI_Company_Name__c, Email, Website, 
+                   ZI_Employees__c, LS_Enrichment_Status__c
+            FROM Lead 
+            WHERE Id IN ('{ids_string}')
+            """
+            
+            assert self.sf is not None  # Type hint for linter
+            result = self.sf.query(batch_query)
+            
+            analyzed_leads = []
+            for record in result['records']:
+                # Remove Salesforce metadata
+                if 'attributes' in record:
+                    del record['attributes']
+                
+                # Add business logic flags
+                flags = self._analyze_lead_flags(record)
+                
+                if include_details:
+                    # Include all lead data
+                    record.update(flags)
+                    analyzed_leads.append(record)
+                else:
+                    # Include only ID and flags
+                    analyzed_leads.append({
+                        'Id': record['Id'],
+                        'not_in_TAM': flags['not_in_TAM'],
+                        'suspicious_enrichment': flags['suspicious_enrichment']
+                    })
+            
+            return analyzed_leads
+            
+        except Exception as e:
+            # Return empty results for this batch on error
+            print(f"Error analyzing batch: {str(e)}")
+            return [] 

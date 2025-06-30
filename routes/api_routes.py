@@ -1,13 +1,15 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, send_file
 from services.salesforce_service import SalesforceService
 from services.openai_service import test_openai_connection, test_openai_completion, get_openai_config, generate_lead_confidence_assessment
+from services.excel_service import ExcelService
 from config.config import Config
 
 # Create blueprint for API routes
 api_bp = Blueprint('api', __name__)
 
-# Initialize Salesforce service
+# Initialize services
 sf_service = SalesforceService()
+excel_service = ExcelService()
 
 @api_bp.route('/')
 def index():
@@ -16,6 +18,7 @@ def index():
         "message": "ZoomInfo Quality Assessment API",
         "version": "1.0.0",
         "status": "running",
+        "web_ui": "/ui",
         "endpoints": {
             "health": "/health",
             "debug_config": "/debug-config",
@@ -24,6 +27,7 @@ def index():
             "openai_completion": "/test-openai-completion",
             "get_lead": "/lead/<lead_id>",
             "query_leads": "/leads",
+            "analyze_query": "/leads/analyze-query",
             "lead_confidence": "/lead/<lead_id>/confidence"
         }
     })
@@ -110,39 +114,33 @@ def get_lead(lead_id):
             "message": f"Unexpected error: {str(e)}"
         }), 500
 
-@api_bp.route('/leads')
+@api_bp.route('/leads', methods=['GET'])
 def query_leads():
     """Query leads with optional filters"""
     try:
         # Get query parameters
         limit = request.args.get('limit', 100, type=int)
-        conditions = request.args.get('where')
+        where_clause = request.args.get('where')
         
-        # Validate limit
-        if limit > 1000:
-            return jsonify({
-                "status": "error",
-                "message": "Limit cannot exceed 1000 records"
-            }), 400
+        # Query leads using the service
+        result, message = sf_service.query_leads(where_clause, limit)
         
-        result, message = sf_service.query_leads(conditions, limit)
-        
-        if result:
+        if result is None:
             return jsonify({
-                "status": "success",
-                "message": message,
-                "data": result
-            })
-        else:
-            return jsonify({
-                "status": "error",
-                "message": message
+                'status': 'error',
+                'message': message
             }), 500
-            
+        
+        return jsonify({
+            'status': 'success',
+            'message': message,
+            'data': result
+        })
+        
     except Exception as e:
         return jsonify({
-            "status": "error",
-            "message": f"Unexpected error: {str(e)}"
+            'status': 'error',
+            'message': f'Error querying leads: {str(e)}'
         }), 500
 
 @api_bp.route('/test-openai-connection')
@@ -243,4 +241,244 @@ def get_lead_confidence_assessment(lead_id):
         return jsonify({
             "status": "error",
             "message": f"Unexpected error: {str(e)}"
+        }), 500
+
+@api_bp.route('/leads/analyze-query', methods=['POST'])
+def analyze_leads_query():
+    """Analyze leads from a custom SOQL query"""
+    try:
+        # Get JSON data from request
+        if not request.is_json:
+            return jsonify({
+                'status': 'error',
+                'message': 'Request must be JSON'
+            }), 400
+        
+        data = request.get_json()
+        
+        # Validate required fields
+        if 'soql_query' not in data:
+            return jsonify({
+                'status': 'error',
+                'message': 'Missing required field: soql_query'
+            }), 400
+        
+        soql_query = data['soql_query']
+        max_analyze = data.get('max_analyze', 100)
+        include_ai_assessment = data.get('include_ai_assessment', True)
+        
+        # Validate max_analyze
+        if not isinstance(max_analyze, int) or max_analyze < 1 or max_analyze > 500:
+            return jsonify({
+                'status': 'error',
+                'message': 'max_analyze must be an integer between 1 and 500'
+            }), 400
+        
+        # Validate include_ai_assessment
+        if not isinstance(include_ai_assessment, bool):
+            return jsonify({
+                'status': 'error',
+                'message': 'include_ai_assessment must be a boolean'
+            }), 400
+        
+        # Execute the analysis (always include full details)
+        result, message = sf_service.analyze_leads_from_query(
+            soql_query, max_analyze, include_ai_assessment
+        )
+        
+        if result is None:
+            return jsonify({
+                'status': 'error',
+                'message': message
+            }), 400
+        
+        return jsonify({
+            'status': 'success',
+            'message': message,
+            'data': result
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Error analyzing leads from query: {str(e)}'
+        }), 500
+
+@api_bp.route('/leads/preview-query', methods=['POST'])
+def preview_leads_query():
+    """Preview SOQL query results - show Lead IDs before full analysis"""
+    try:
+        # Get JSON data from request
+        if not request.is_json:
+            return jsonify({
+                'status': 'error',
+                'message': 'Request must be JSON'
+            }), 400
+        
+        data = request.get_json()
+        
+        # Validate required fields
+        if 'soql_query' not in data:
+            return jsonify({
+                'status': 'error',
+                'message': 'Missing required field: soql_query'
+            }), 400
+        
+        soql_query = data['soql_query']
+        preview_limit = data.get('preview_limit', 100)
+        
+        # Validate preview_limit
+        if not isinstance(preview_limit, int) or preview_limit < 1 or preview_limit > 1000:
+            return jsonify({
+                'status': 'error',
+                'message': 'preview_limit must be an integer between 1 and 1000'
+            }), 400
+        
+        # Execute the preview
+        result, message = sf_service.preview_soql_query(soql_query, preview_limit)
+        
+        if result is None:
+            return jsonify({
+                'status': 'error',
+                'message': message
+            }), 400
+        
+        return jsonify({
+            'status': 'success',
+            'message': message,
+            'data': result
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Error previewing SOQL query: {str(e)}'
+        }), 500
+
+@api_bp.route('/leads/analyze-query/export', methods=['POST'])
+def export_analyze_query_excel():
+    """Export analyze-query results to Excel file"""
+    try:
+        # Get JSON data from request
+        if not request.is_json:
+            return jsonify({
+                'status': 'error',
+                'message': 'Request must be JSON'
+            }), 400
+        
+        data = request.get_json()
+        
+        # Validate required fields
+        if 'soql_query' not in data:
+            return jsonify({
+                'status': 'error',
+                'message': 'Missing required field: soql_query'
+            }), 400
+        
+        soql_query = data['soql_query']
+        max_analyze = data.get('max_analyze', 100)
+        include_ai_assessment = data.get('include_ai_assessment', True)
+        
+        # Validate parameters (same as regular analyze-query endpoint)
+        if not isinstance(max_analyze, int) or max_analyze < 1 or max_analyze > 500:
+            return jsonify({
+                'status': 'error',
+                'message': 'max_analyze must be an integer between 1 and 500'
+            }), 400
+        
+        if not isinstance(include_ai_assessment, bool):
+            return jsonify({
+                'status': 'error',
+                'message': 'include_ai_assessment must be a boolean'
+            }), 400
+        
+        # Execute the analysis (same as regular endpoint)
+        result, message = sf_service.analyze_leads_from_query(
+            soql_query, max_analyze, include_ai_assessment
+        )
+        
+        if result is None:
+            return jsonify({
+                'status': 'error',
+                'message': message
+            }), 400
+        
+        # Generate Excel file
+        try:
+            file_buffer, filename = excel_service.create_lead_analysis_excel(
+                analysis_data=result['leads'],
+                summary_data=result['summary'],
+                query_info=result['query_info'],
+                filename_prefix="lead_query_analysis"
+            )
+            
+            return send_file(
+                file_buffer,
+                as_attachment=True,
+                download_name=filename,
+                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+            
+        except Exception as excel_error:
+            return jsonify({
+                'status': 'error',
+                'message': f'Error generating Excel file: {str(excel_error)}'
+            }), 500
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Error exporting analyze-query results: {str(e)}'
+        }), 500
+
+@api_bp.route('/lead/<lead_id>/confidence/export')
+def export_lead_confidence_excel(lead_id):
+    """Export single lead confidence assessment to Excel file"""
+    try:
+        # First, get the lead data with confidence assessment (same as regular endpoint)
+        lead_data, sf_message = sf_service.get_lead_by_id(lead_id)
+        
+        if not lead_data:
+            return jsonify({
+                "status": "error",
+                "message": sf_message
+            }), 404
+        
+        # Generate confidence assessment using OpenAI
+        assessment, ai_message = generate_lead_confidence_assessment(lead_data)
+        
+        if not assessment:
+            return jsonify({
+                "status": "error",
+                "message": f"Failed to generate confidence assessment: {ai_message}"
+            }), 500
+        
+        # Add assessment to lead data
+        lead_data['confidence_assessment'] = assessment
+        lead_data['ai_assessment_status'] = 'success'
+        
+        # Generate Excel file
+        try:
+            file_buffer, filename = excel_service.create_single_lead_excel(
+                lead_data=lead_data,
+                filename_prefix=f"lead_confidence_{lead_id}"
+            )
+            
+            return send_file(
+                file_buffer,
+                as_attachment=True,
+                download_name=filename,
+                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+            
+        except Exception as excel_error:
+            return jsonify({
+                'status': 'error',
+                'message': f'Error generating Excel file: {str(excel_error)}'
+            }), 500
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Error exporting lead confidence assessment: {str(e)}'
         }), 500
