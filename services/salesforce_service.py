@@ -226,16 +226,12 @@ class SalesforceService:
             if not self.ensure_connection():
                 return None, "Failed to establish Salesforce connection"
             
-            # Validate SOQL query contains Id field
+            # Validate SOQL query 
             if not self._validate_soql_query(soql_query):
-                return None, "SOQL query must include 'Id' in SELECT clause and cannot contain dangerous operations"
+                return None, "Invalid SOQL query. Must return Lead IDs only (e.g., SELECT Id FROM Lead, SELECT Lead.Id FROM Lead, or WHERE/LIMIT clauses). JOINs and UNIONs allowed if they return Lead IDs."
             
-            # Add LIMIT to the query for preview if not already present
-            query_upper = soql_query.upper()
-            if 'LIMIT' not in query_upper:
-                preview_query = f"{soql_query} LIMIT {limit}"
-            else:
-                preview_query = soql_query
+            # Build the proper query using the new helper method
+            preview_query = self._build_soql_query(soql_query, limit)
             
             # Execute the SOQL query to get lead IDs only
             assert self.sf is not None  # Type hint for linter
@@ -272,16 +268,16 @@ class SalesforceService:
             if not self.ensure_connection():
                 return None, "Failed to establish Salesforce connection"
             
-            # Validate SOQL query contains Id field
+            # Validate SOQL query
             if not self._validate_soql_query(soql_query):
-                return None, "SOQL query must include 'Id' in SELECT clause and cannot contain dangerous operations"
+                return None, "Invalid SOQL query. Must return Lead IDs only (e.g., SELECT Id FROM Lead, SELECT Lead.Id FROM Lead, or WHERE/LIMIT clauses). JOINs and UNIONs allowed if they return Lead IDs."
             
             # Execute the SOQL query to get lead IDs only (much faster than query_all)
             assert self.sf is not None  # Type hint for linter
             
-            # Get only the IDs we need to analyze (limit the query from the start)
-            limited_query = f"{soql_query} LIMIT {max_analyze}"
-            id_result = self.sf.query(limited_query)
+            # Build the proper query using the new helper method
+            final_query = self._build_soql_query(soql_query, max_analyze)
+            id_result = self.sf.query(final_query)
             lead_ids_to_analyze = [record['Id'] for record in id_result['records']]
             actual_analyze_count = len(lead_ids_to_analyze)
             
@@ -371,6 +367,7 @@ class SalesforceService:
                 'leads': analyzed_leads,
                 'query_info': {
                     'original_query': soql_query,
+                    'final_query': final_query,
                     'execution_time': f"{execution_time:.2f}s",
                     'total_found': total_found,
                     'analyzed_count': actual_analyze_count,
@@ -385,28 +382,122 @@ class SalesforceService:
             return None, f"Error analyzing leads from query: {str(e)}"
     
     def _validate_soql_query(self, soql_query):
-        """Validate SOQL query for safety and required fields"""
-        if not soql_query:
-            return False
+        """Validate SOQL query for safety - must return Lead IDs only"""
+        # Empty query is valid (will default to random leads)
+        if not soql_query or not soql_query.strip():
+            return True
         
         # Convert to uppercase for checking
         query_upper = soql_query.upper().strip()
+        
+        # If it's not a full SELECT query, it's a WHERE/LIMIT clause - validate it
+        if not query_upper.startswith('SELECT'):
+            # Check for dangerous operations in WHERE/LIMIT clauses
+            dangerous_keywords = ['DELETE', 'UPDATE', 'INSERT', 'UPSERT', 'MERGE', 'DROP', 'ALTER', 'CREATE', 'TRUNCATE']
+            for keyword in dangerous_keywords:
+                if keyword in query_upper:
+                    return False
+            return True
+        
+        # For full SELECT queries, validate for security and Lead ID requirement
+        import re
+        
+        # Check for dangerous operations (most important security check)
+        dangerous_keywords = ['DELETE', 'UPDATE', 'INSERT', 'UPSERT', 'MERGE', 'DROP', 'ALTER', 'CREATE', 'TRUNCATE']
+        for keyword in dangerous_keywords:
+            if keyword in query_upper:
+                return False
         
         # Must be a SELECT query
         if not query_upper.startswith('SELECT'):
             return False
         
-        # Must include Id field
-        if 'ID' not in query_upper or 'SELECT ID' not in query_upper.replace(',', ' ').replace('\n', ' '):
+        # Extract the main SELECT clause (first occurrence)
+        select_match = re.search(r'SELECT\s+(.*?)\s+FROM', query_upper, re.DOTALL)
+        if not select_match:
             return False
         
-        # Check for dangerous operations
-        dangerous_keywords = ['DELETE', 'UPDATE', 'INSERT', 'UPSERT', 'MERGE']
-        for keyword in dangerous_keywords:
-            if keyword in query_upper:
-                return False
+        select_fields = select_match.group(1).strip()
+        
+        # Check if selecting Lead.Id or just Id (both should be allowed)
+        # Remove whitespace and normalize
+        select_fields_clean = re.sub(r'\s+', '', select_fields)
+        
+        # Allow: "Id", "Lead.Id", "l.Id" (with alias), etc.
+        # The key is that it should end with ".ID" or be exactly "ID"
+        valid_id_patterns = [
+            r'^ID$',                    # Just "Id"
+            r'^LEAD\.ID$',             # "Lead.Id"  
+            r'^\w+\.ID$',              # "alias.Id" (like "l.Id")
+        ]
+        
+        is_valid_id_selection = any(re.match(pattern, select_fields_clean) for pattern in valid_id_patterns)
+        if not is_valid_id_selection:
+            return False
+        
+        # For the main FROM clause, we need to ensure it involves Lead object
+        # This is more flexible - allows JOINs as long as Lead is involved
+        if 'LEAD' not in query_upper:
+            return False
+        
+        # Additional validation: if there are UNIONs, each part should be validated
+        if 'UNION' in query_upper:
+            # Split by UNION and validate each part
+            union_parts = re.split(r'UNION\s+(?:ALL\s+)?', query_upper)
+            for part in union_parts:
+                part = part.strip()
+                if not part:
+                    continue
+                    
+                # Each UNION part should also select Lead IDs
+                part_select_match = re.search(r'SELECT\s+(.*?)\s+FROM', part, re.DOTALL)
+                if not part_select_match:
+                    return False
+                    
+                part_select_fields = part_select_match.group(1).strip()
+                part_select_clean = re.sub(r'\s+', '', part_select_fields)
+                
+                # Each UNION part should also be selecting ID
+                part_valid = any(re.match(pattern, part_select_clean) for pattern in valid_id_patterns)
+                if not part_valid:
+                    return False
+                
+                # Each UNION part should involve Lead object
+                if 'LEAD' not in part:
+                    return False
         
         return True
+    
+    def _build_soql_query(self, user_query, max_analyze):
+        """Build the final SOQL query handling empty queries and LIMIT clauses"""
+        # Handle empty query - return random leads
+        if not user_query or not user_query.strip():
+            return f"SELECT Id FROM Lead LIMIT {max_analyze}"
+        
+        user_query = user_query.strip()
+        
+        # If query doesn't start with SELECT, assume it's a WHERE/LIMIT clause
+        if not user_query.upper().startswith('SELECT'):
+            base_query = f"SELECT Id FROM Lead {user_query}"
+        else:
+            base_query = user_query
+        
+        # Check if LIMIT already exists
+        query_upper = base_query.upper()
+        if 'LIMIT' in query_upper:
+            # Extract existing LIMIT value
+            import re
+            limit_match = re.search(r'LIMIT\s+(\d+)', query_upper)
+            if limit_match:
+                existing_limit = int(limit_match.group(1))
+                # Use the smaller of the two limits
+                effective_limit = min(existing_limit, max_analyze)
+                # Replace the existing LIMIT with the effective limit
+                base_query = re.sub(r'LIMIT\s+\d+', f'LIMIT {effective_limit}', base_query, flags=re.IGNORECASE)
+            return base_query
+        else:
+            # No existing LIMIT, add our own
+            return f"{base_query} LIMIT {max_analyze}"
     
     def _analyze_lead_batch(self, lead_ids, include_details=True):
         """Analyze a batch of leads by their IDs"""

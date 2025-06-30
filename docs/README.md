@@ -29,6 +29,7 @@ A Flask API for assessing the quality and reliability of ZoomInfo-enriched lead 
 - **Email Domain Field**: New `email_domain` returned for all lead queries
 - **Unicode JSON Support**: Proper emoji display in API responses
 - **Cross-Field Validation**: Advanced consistency checks between ZoomInfo enrichment fields
+- **Flexible SOQL Queries**: Support for JOINs, UNIONs, and complex queries that return Lead IDs
 
 ✅ **Dependencies Updated to Latest Versions**
 - **Flask 3.1.1** - Latest stable with improved performance and security
@@ -128,6 +129,7 @@ The API will be available at `http://localhost:5000`
 
 #### Bulk Analysis & Export
 - **POST** `/leads/analyze-query` - **Analyze multiple leads from SOQL query with AI scoring**
+  - Supports complex queries with JOINs, UNIONs, and subqueries that return Lead IDs
 - **POST** `/leads/analyze-query/export` - **Export bulk analysis results to Excel**
 - **POST** `/leads/preview-query` - **Preview SOQL query results before analysis**
 
@@ -157,9 +159,15 @@ curl "http://localhost:5000/leads?limit=50&where=Email!=null"
 open http://localhost:5000/ui
 
 # Bulk analysis via API (for programmatic use)
+# Simple query
 curl -X POST http://localhost:5000/leads/analyze-query \
   -H "Content-Type: application/json" \
   -d '{"soql_query": "SELECT Id FROM Lead WHERE Email LIKE '\''%@gmail.com'\''", "max_analyze": 10}'
+
+# Complex query with JOIN
+curl -X POST http://localhost:5000/leads/analyze-query \
+  -H "Content-Type: application/json" \
+  -d '{"soql_query": "SELECT Lead.Id FROM Lead JOIN Account ON Lead.AccountId = Account.Id WHERE Account.Industry = '\''Technology'\''", "max_analyze": 10}'
 
 # Export bulk analysis to Excel
 curl -X POST http://localhost:5000/leads/analyze-query/export \
@@ -264,6 +272,83 @@ The API returns the following ZoomInfo-related fields:
 - **Visual Indicators**: Red highlighting for quality issues, traffic light colors for confidence scores
 - **Comprehensive Data**: All lead fields, confidence assessments, explanations, corrections, and inferences
 - **Timestamped Files**: Automatic naming with date/time for easy organization
+
+## SOQL Query Support
+
+The API supports flexible SOQL queries for bulk analysis with the following capabilities:
+
+### ✅ **Supported Query Types**
+
+#### **Simple Queries**
+```sql
+-- Basic filtering
+WHERE Email LIKE '%@gmail.com'
+WHERE ZI_Employees__c > 100
+LIMIT 50
+
+-- Full SELECT statements
+SELECT Id FROM Lead WHERE Company = 'Acme Corp'
+SELECT Lead.Id FROM Lead WHERE Email IS NOT NULL
+```
+
+#### **Complex Queries with JOINs**
+```sql
+-- Join with Account for filtering
+SELECT Lead.Id FROM Lead 
+JOIN Account ON Lead.AccountId = Account.Id 
+WHERE Account.Industry = 'Technology'
+
+-- Multiple JOINs
+SELECT l.Id FROM Lead l 
+JOIN Contact c ON l.Email = c.Email 
+JOIN Account a ON c.AccountId = a.Id 
+WHERE a.AnnualRevenue > 1000000
+```
+
+#### **UNION Queries**
+```sql
+-- Combine different Lead segments
+SELECT Id FROM Lead WHERE ZI_Employees__c > 100
+UNION ALL
+SELECT Id FROM Lead WHERE Email LIKE '%@enterprise.com'
+
+-- Complex UNION with JOINs
+SELECT Lead.Id FROM Lead JOIN Account ON Lead.AccountId = Account.Id WHERE Account.Type = 'Customer'
+UNION
+SELECT Lead.Id FROM Lead WHERE ZI_Company_Name__c LIKE '%Fortune%'
+```
+
+#### **Subqueries**
+```sql
+-- Filter by related Account data
+SELECT Id FROM Lead 
+WHERE AccountId IN (
+    SELECT Id FROM Account 
+    WHERE AnnualRevenue > 1000000
+)
+
+-- Complex nested filtering
+SELECT Id FROM Lead 
+WHERE Id NOT IN (
+    SELECT LeadId FROM Task 
+    WHERE Subject LIKE '%ZoomInfo%'
+)
+```
+
+### ❌ **Security Restrictions**
+
+The following are **blocked for security**:
+- **Non-Lead Objects**: `SELECT Id FROM Contact` ❌
+- **Non-ID Fields**: `SELECT Name FROM Lead` ❌
+- **Dangerous Operations**: `DELETE`, `UPDATE`, `INSERT`, `DROP` ❌
+- **Mixed Object UNIONs**: `SELECT Id FROM Lead UNION SELECT Id FROM Contact` ❌
+
+### **Validation Rules**
+
+1. **Result-Focused**: Query must return Lead IDs only
+2. **Lead-Centric**: Must involve Lead object in the query
+3. **Security-First**: All dangerous SQL operations blocked
+4. **Flexible Structure**: JOINs, UNIONs, subqueries allowed if they return Lead IDs
 
 ## Development
 

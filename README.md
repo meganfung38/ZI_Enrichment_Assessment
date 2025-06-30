@@ -68,6 +68,7 @@ python app.py
 - `not_in_TAM` detection for large companies missing ZoomInfo enrichment
 - `suspicious_enrichment` detection for potentially incorrect ZoomInfo data
 - Email domain validation and corporate vs. free email detection
+- **Flexible SOQL Query Support**: JOINs, UNIONs, and complex queries allowed if they return Lead IDs
 
 ⚡ **Performance & User Experience**
 - Optimized multi-lead analysis with 10x performance improvement
@@ -99,6 +100,7 @@ curl http://localhost:5000/lead/00Q5e00000ABC123/confidence
 curl http://localhost:5000/lead/00Q5e00000ABC123/confidence/export -o lead_assessment.xlsx
 
 # Analyze multiple leads from SOQL query (via web UI at /ui)
+# Supports complex queries with JOINs and UNIONs that return Lead IDs
 # POST /leads/analyze-query - Bulk ZoomInfo enrichment analysis
 # POST /leads/analyze-query/export - Export bulk analysis to Excel
 ```

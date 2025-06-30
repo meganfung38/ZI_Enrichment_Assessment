@@ -178,8 +178,8 @@ def create_app(config_name=None):
             </div>
             
             <form id="queryForm">
-                <label for="soqlQuery">SOQL Query:</label>
-                <textarea id="soqlQuery" placeholder="WHERE Email LIKE '%@gmail.com' AND ZI_Employees__c > 100">WHERE </textarea>
+                <label for="soqlQuery">SOQL Query (optional - leave blank for random leads):</label>
+<textarea id="soqlQuery" placeholder="Valid examples:&#10;• Leave blank for random leads&#10;• WHERE Email LIKE '%@gmail.com'&#10;• LIMIT 50&#10;• SELECT Id FROM Lead WHERE Company = 'Acme'&#10;• SELECT Lead.Id FROM Lead JOIN Account ON...&#10;• SELECT Id FROM Lead WHERE... UNION SELECT Id FROM Lead WHERE...&#10;&#10;✅ JOINs & UNIONs allowed if they return Lead IDs only"></textarea>
                 
                 <div class="form-row">
                     <div>
@@ -238,13 +238,7 @@ def create_app(config_name=None):
             const whereClause = document.getElementById('soqlQuery').value.trim();
             const previewLimit = parseInt(document.getElementById('previewLimit').value);
             
-            // Validate inputs
-            if (!whereClause) {
-                responseDiv.innerHTML = 'Please enter a WHERE clause for your SOQL query.';
-                responseDiv.className = 'response error';
-                responseDiv.style.display = 'block';
-                return;
-            }
+            // No validation needed - empty query is allowed for random leads
             
             if (isNaN(previewLimit) || previewLimit < 1 || previewLimit > 1000) {
                 responseDiv.innerHTML = 'Preview limit must be a number between 1 and 1000.';
@@ -253,8 +247,8 @@ def create_app(config_name=None):
                 return;
             }
             
-            // Build full SOQL query
-            const fullQuery = `SELECT Id FROM Lead ${whereClause}`;
+            // Build SOQL query - let backend handle empty queries
+            const fullQuery = whereClause;
             
             // Show loading state
             button.disabled = true;
@@ -327,8 +321,8 @@ def create_app(config_name=None):
                 return;
             }
             
-            // Build full SOQL query
-            const fullQuery = `SELECT Id FROM Lead ${whereClause}`;
+            // Build SOQL query - let backend handle empty queries
+            const fullQuery = whereClause;
             
             // Show loading state
             button.disabled = true;
@@ -356,11 +350,11 @@ def create_app(config_name=None):
                 if (response.ok) {
                     responseDiv.innerHTML = JSON.stringify(data, null, 2);
                     responseDiv.className = 'response success';
-                    document.getElementById('exportConfidenceBtn').disabled = false;
+                    document.getElementById('exportBtn').disabled = false; // Enable the correct export button
                 } else {
                     responseDiv.innerHTML = JSON.stringify(data, null, 2);
                     responseDiv.className = 'response error';
-                    document.getElementById('exportConfidenceBtn').disabled = true;
+                    document.getElementById('exportBtn').disabled = true;
                 }
             } catch (error) {
                 responseDiv.innerHTML = `Error: ${error.message}`;
@@ -385,8 +379,8 @@ def create_app(config_name=None):
             const whereClause = document.getElementById('soqlQuery').value.trim();
             const maxAnalyze = parseInt(document.getElementById('maxAnalyze').value);
             
-            // Build full SOQL query
-            const fullQuery = `SELECT Id FROM Lead ${whereClause}`;
+            // Build SOQL query - let backend handle empty queries
+            const fullQuery = whereClause;
             
             // Show loading state
             button.disabled = true;
@@ -480,12 +474,12 @@ def create_app(config_name=None):
                     responseDiv.innerHTML = JSON.stringify(data, null, 2);
                     responseDiv.className = 'response success';
                     // Enable export button after successful analysis
-                    document.getElementById('exportBtn').disabled = false;
+                    document.getElementById('exportConfidenceBtn').disabled = false;
                 } else {
                     responseDiv.innerHTML = JSON.stringify(data, null, 2);
                     responseDiv.className = 'response error';
                     // Keep export button disabled on error
-                    document.getElementById('exportBtn').disabled = true;
+                    document.getElementById('exportConfidenceBtn').disabled = true;
                 }
             } catch (error) {
                 responseDiv.innerHTML = `Error: ${error.message}`;
