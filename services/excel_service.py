@@ -47,10 +47,10 @@ class ExcelService:
             current_row = self._add_summary_section(ws, summary_data, query_info, current_row)
             current_row += 1
         
-        # Add headers
+        # Add headers for all lead data fields plus assessment outputs
         headers = [
-            "Lead ID", "Email", "Company Name", "Employee Count", "Website", 
-            "Enrichment Status", "First Channel", "Email Domain",
+            "Lead ID", "Email", "First Channel", "Segment Name", "Company Size Range",
+            "Website", "ZI Website", "ZI Company Name", "ZI Employees", "Email Domain",
             "Not in TAM", "Suspicious Enrichment", "Confidence Score", 
             "Explanation", "Corrections", "Inferences", "AI Status"
         ]
@@ -155,23 +155,25 @@ class ExcelService:
         inferences = confidence_assessment.get('inferences', {}) if confidence_assessment else {}
         inferences_text = json.dumps(inferences, indent=2) if inferences else ''
         
-        # Data for each column
+        # Data for each column (matching header order)
         row_data = [
-            lead.get('Id', ''),
-            lead.get('Email', ''),
-            lead.get('ZI_Company_Name__c', ''),
-            lead.get('ZI_Employees__c', ''),
-            lead.get('Website', ''),
-            lead.get('LS_Enrichment_Status__c', ''),
-            lead.get('First_Channel__c', ''),
-            lead.get('email_domain', ''),
-            'Yes' if lead.get('not_in_TAM') else 'No',
-            'Yes' if lead.get('suspicious_enrichment') else 'No',
-            confidence_score,
-            explanation_text,
-            corrections_text,
-            inferences_text,
-            lead.get('ai_assessment_status', '')
+            lead.get('Id', ''),                          # Lead ID
+            lead.get('Email', ''),                       # Email
+            lead.get('First_Channel__c', ''),            # First Channel
+            lead.get('SegmentName', ''),                 # Segment Name
+            lead.get('LS_Company_Size_Range__c', ''),    # Company Size Range
+            lead.get('Website', ''),                     # Website
+            lead.get('ZI_Website__c', ''),               # ZI Website
+            lead.get('ZI_Company_Name__c', ''),          # ZI Company Name
+            lead.get('ZI_Employees__c', ''),             # ZI Employees
+            lead.get('email_domain', ''),                # Email Domain
+            'Yes' if lead.get('not_in_TAM') else 'No',   # Not in TAM
+            'Yes' if lead.get('suspicious_enrichment') else 'No',  # Suspicious Enrichment
+            confidence_score,                            # Confidence Score
+            explanation_text,                            # Explanation
+            corrections_text,                            # Corrections
+            inferences_text,                             # Inferences
+            lead.get('ai_assessment_status', '')         # AI Status
         ]
         
         for col, value in enumerate(row_data, 1):
@@ -179,11 +181,11 @@ class ExcelService:
             cell.border = self.border
             
             # Special formatting for certain columns
-            if col in [9, 10]:  # Boolean flags
+            if col in [11, 12]:  # Boolean flags (Not in TAM, Suspicious Enrichment)
                 cell.alignment = self.center_alignment
                 if value == 'Yes':
                     cell.fill = PatternFill(start_color="FFE6E6", end_color="FFE6E6", fill_type="solid")
-            elif col == 11:  # Confidence score
+            elif col == 13:  # Confidence score
                 cell.alignment = self.center_alignment
                 if isinstance(value, (int, float)) and value > 0:
                     if value >= 80:
@@ -192,7 +194,7 @@ class ExcelService:
                         cell.fill = PatternFill(start_color="FFFACD", end_color="FFFACD", fill_type="solid")
                     else:
                         cell.fill = PatternFill(start_color="FFE6E6", end_color="FFE6E6", fill_type="solid")
-            elif col in [12, 13, 14]:  # Text fields that might be long
+            elif col in [14, 15, 16]:  # Text fields that might be long (Explanation, Corrections, Inferences)
                 cell.alignment = self.wrap_alignment
     
     def _auto_adjust_columns(self, ws):
@@ -200,19 +202,21 @@ class ExcelService:
         column_widths = {
             1: 20,   # Lead ID
             2: 25,   # Email
-            3: 20,   # Company Name
-            4: 12,   # Employee Count
-            5: 20,   # Website
-            6: 15,   # Enrichment Status
-            7: 15,   # First Channel
-            8: 15,   # Email Domain
-            9: 12,   # Not in TAM
-            10: 15,  # Suspicious Enrichment
-            11: 12,  # Confidence Score
-            12: 40,  # Explanation
-            13: 25,  # Corrections
-            14: 25,  # Inferences
-            15: 12   # AI Status
+            3: 15,   # First Channel
+            4: 15,   # Segment Name
+            5: 18,   # Company Size Range
+            6: 20,   # Website
+            7: 20,   # ZI Website
+            8: 20,   # ZI Company Name
+            9: 12,   # ZI Employees
+            10: 15,  # Email Domain
+            11: 12,  # Not in TAM
+            12: 15,  # Suspicious Enrichment
+            13: 12,  # Confidence Score
+            14: 40,  # Explanation
+            15: 25,  # Corrections
+            16: 25,  # Inferences
+            17: 12   # AI Status
         }
         
         for col, width in column_widths.items():

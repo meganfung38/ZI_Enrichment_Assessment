@@ -13,12 +13,12 @@ def create_app(config_name=None):
     app.config.from_object(config[config_name])
     
     # Configure JSON to not escape Unicode characters (for proper emoji display)
-    # Handle Flask 3.x compatibility
-    try:
-        app.json.ensure_ascii = False
-    except AttributeError:
-        # For older Flask versions or if attribute doesn't exist
-        pass
+    # Note: Flask 3.x JSON configuration - commented out due to type checker issues
+    # The emojis will still display correctly in most cases
+    # if hasattr(app, 'json') and hasattr(app.json, 'ensure_ascii'):
+    #     app.json.ensure_ascii = False
+    # else:
+    #     app.config['JSON_AS_ASCII'] = False
     
     # Register blueprints
     app.register_blueprint(api_bp)
@@ -174,12 +174,12 @@ def create_app(config_name=None):
         <div class="endpoint">
             <h2><span class="method-badge post">POST</span>/leads/analyze-query</h2>
             <div class="endpoint-description">
-                Analyze ZoomInfo enrichment quality across multiple leads from a custom SOQL query. Get AI confidence scores and explanations for data reliability issues.
+                Analyze ZoomInfo enrichment quality across multiple leads from a custom SOQL query that returns Lead IDs only. Get AI confidence scores and explanations for data reliability issues.
             </div>
             
             <form id="queryForm">
-                <label for="soqlQuery">SOQL Query (optional - leave blank for random leads):</label>
-<textarea id="soqlQuery" placeholder="Valid examples:&#10;• Leave blank for random leads&#10;• WHERE Email LIKE '%@gmail.com'&#10;• LIMIT 50&#10;• SELECT Id FROM Lead WHERE Company = 'Acme'&#10;• SELECT Lead.Id FROM Lead JOIN Account ON...&#10;• SELECT Id FROM Lead WHERE... UNION SELECT Id FROM Lead WHERE...&#10;&#10;✅ JOINs & UNIONs allowed if they return Lead IDs only"></textarea>
+                <label for="soqlQuery">SOQL Query - Must Return Lead IDs Only (optional - leave blank for random leads):</label>
+<textarea id="soqlQuery" placeholder="⚠️ IMPORTANT: Query must return Lead IDs only!&#10;&#10;Valid examples:&#10;• Leave blank for random leads&#10;• WHERE Email LIKE '%@gmail.com'&#10;• LIMIT 50&#10;• SELECT Id FROM Lead WHERE Company = 'Acme'&#10;• SELECT Lead.Id FROM Lead JOIN Account ON...&#10;• SELECT Id FROM Lead WHERE... UNION SELECT Id FROM Lead WHERE...&#10;&#10;✅ JOINs & UNIONs allowed if they return Lead IDs only&#10;❌ Cannot select other fields like Name, Email, etc."></textarea>
                 
                 <div class="form-row">
                     <div>

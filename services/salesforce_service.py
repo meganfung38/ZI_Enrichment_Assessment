@@ -92,6 +92,24 @@ class SalesforceService:
         except (IndexError, AttributeError):
             return None
     
+    def _normalize_lead_record(self, lead_record):
+        """Normalize lead record by extracting relationship fields and cleaning up structure"""
+        # Handle SegmentName__r.Name relationship field
+        if 'SegmentName__r' in lead_record:
+            segment_obj = lead_record.get('SegmentName__r')
+            if segment_obj and isinstance(segment_obj, dict):
+                lead_record['SegmentName'] = segment_obj.get('Name')
+            else:
+                lead_record['SegmentName'] = None
+            # Remove the relationship object
+            del lead_record['SegmentName__r']
+        
+        # Remove Salesforce metadata if present
+        if 'attributes' in lead_record:
+            del lead_record['attributes']
+        
+        return lead_record
+    
     def _analyze_lead_flags(self, lead_record):
         """Analyze lead data and return business logic flags and email domain"""
         # Extract values with explicit None handling
@@ -144,10 +162,11 @@ class SalesforceService:
             if not self.ensure_connection():
                 return None, "Failed to establish Salesforce connection"
             
-            # Query for specific ZoomInfo fields
+            # Query for specific ZoomInfo fields and additional enrichment data
             query = """
-            SELECT Id, First_Channel__c, ZI_Company_Name__c, Email, Website, 
-                   ZI_Employees__c, LS_Enrichment_Status__c
+            SELECT Id, Email, First_Channel__c, 
+                   SegmentName__r.Name, LS_Company_Size_Range__c, Website, 
+                   ZI_Website__c, ZI_Company_Name__c, ZI_Employees__c
             FROM Lead 
             WHERE Id = '{}'
             """.format(lead_id)
@@ -161,9 +180,8 @@ class SalesforceService:
             # Get the lead record
             lead_record = result['records'][0]
             
-            # Remove Salesforce metadata from the response
-            if 'attributes' in lead_record:
-                del lead_record['attributes']
+            # Normalize the lead record (handle relationship fields and cleanup)
+            lead_record = self._normalize_lead_record(lead_record)
             
             # Add business logic flags
             flags = self._analyze_lead_flags(lead_record)
@@ -180,10 +198,11 @@ class SalesforceService:
             if not self.ensure_connection():
                 return None, "Failed to establish Salesforce connection"
             
-            # Base query with ZoomInfo fields
+            # Base query with ZoomInfo fields and additional enrichment data
             base_query = """
-            SELECT Id, First_Channel__c, ZI_Company_Name__c, Email, Website, 
-                   ZI_Employees__c, LS_Enrichment_Status__c
+            SELECT Id, Email, First_Channel__c, 
+                   SegmentName__r.Name, LS_Company_Size_Range__c, Website, 
+                   ZI_Website__c, ZI_Company_Name__c, ZI_Employees__c
             FROM Lead
             """
             
@@ -197,11 +216,11 @@ class SalesforceService:
             assert self.sf is not None  # Type hint for linter
             result = self.sf.query(base_query)
             
-            # Clean up records by removing Salesforce metadata and add flags
+            # Clean up records by normalizing and adding flags
             clean_records = []
             for record in result['records']:
-                if 'attributes' in record:
-                    del record['attributes']
+                # Normalize the lead record (handle relationship fields and cleanup)
+                record = self._normalize_lead_record(record)
                 
                 # Add business logic flags
                 flags = self._analyze_lead_flags(record)
@@ -505,8 +524,9 @@ class SalesforceService:
             # Build batch query for all lead IDs
             ids_string = "', '".join(lead_ids)
             batch_query = f"""
-            SELECT Id, First_Channel__c, ZI_Company_Name__c, Email, Website, 
-                   ZI_Employees__c, LS_Enrichment_Status__c
+            SELECT Id, Email, First_Channel__c, 
+                   SegmentName__r.Name, LS_Company_Size_Range__c, Website, 
+                   ZI_Website__c, ZI_Company_Name__c, ZI_Employees__c
             FROM Lead 
             WHERE Id IN ('{ids_string}')
             """
@@ -516,9 +536,8 @@ class SalesforceService:
             
             analyzed_leads = []
             for record in result['records']:
-                # Remove Salesforce metadata
-                if 'attributes' in record:
-                    del record['attributes']
+                # Normalize the lead record (handle relationship fields and cleanup)
+                record = self._normalize_lead_record(record)
                 
                 # Add business logic flags
                 flags = self._analyze_lead_flags(record)

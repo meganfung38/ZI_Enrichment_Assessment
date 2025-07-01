@@ -4,45 +4,53 @@ A Flask API for assessing the quality and reliability of ZoomInfo-enriched lead 
 
 ## Latest Updates (January 2025)
 
-✅ **Professional Excel Export System**
-- **New Export Endpoints**: Download analysis results as formatted XLSX files
-- **Professional Formatting**: Color-coded confidence scores, bordered tables, proper column widths
-- **Summary Statistics**: Comprehensive analysis overview at the top of each report
-- **Visual Indicators**: Red highlighting for quality issues, green/yellow/red for confidence scores
-- **Automated Naming**: Timestamped filenames for easy organization
+✅ **Comprehensive Lead Data Collection**
+- **10 Core Field Analysis**: Email, channel, segment, size ranges, dual website sources, ZoomInfo enrichment data
+- **Enhanced Cross-Validation**: Compare ZoomInfo data against internal estimates and segment classifications
+- **Business Context Integration**: Sales segment and channel information for enriched assessment
+- **Dual Website Validation**: Compare lead-provided vs ZoomInfo-enriched website data for consistency
 
-✅ **Enhanced Analyze-Query Endpoint**
-- **Performance Optimized**: 10x faster execution through batch processing and query optimization
-- **Streamlined Interface**: Removed unnecessary options, always includes AI confidence scoring
-- **Two-Step Workflow**: Preview queries before running full analysis for better control
-- **Smart UI Controls**: Export buttons only enabled after successful analysis completion
+✅ **Enterprise-Grade SOQL Query System**
+- **Complex Query Support**: JOINs, UNIONs, subqueries allowed if they return Lead IDs
+- **Result-Focused Security**: Smart validation ensures only Lead IDs are returned while enabling flexibility
+- **Query Intelligence**: Handles empty queries, LIMIT conflicts, and WHERE clauses automatically
+- **Business Logic Support**: Sophisticated lead filtering with multi-object relationship queries
 
-✅ **AI-Powered ZoomInfo Enrichment Assessment**
-- **Core Endpoint**: `/lead/<lead_id>/confidence` - Complete AI assessment with scores 0-100
-- **Smart Explanations**: Clear bullet-point rationale with emoji indicators (✅ ⚠️ ❌)
-- **Data Corrections**: AI suggests high-confidence fixes for incorrect ZoomInfo data
-- **Intelligent Inferences**: AI fills gaps in missing ZoomInfo enrichment data
-- **Email Domain Analysis**: Automatic extraction and corporate vs. free domain validation
+✅ **Advanced AI-Powered Assessment**
+- **Enhanced Validation Framework**: 10+ data points for comprehensive enrichment quality scoring (0-100)
+- **Intelligent Cross-Checking**: Website consistency, company size agreement, segment alignment
+- **Smart Corrections**: High-confidence fixes for conflicting ZoomInfo data (≥80% confidence)
+- **Contextual Inferences**: Lower-confidence guesses for missing enrichment data (≥40% confidence)
+- **Segment-Aware Analysis**: Use sales context and channel information for more accurate assessments
+- **URL Intelligence**: Prevents redundant corrections like "example.com" → "https://example.com"
+- **Mandatory Caution Rules**: Confidence scores < 100 must include specific caution/issue explanations
 
-✅ **Enhanced ZoomInfo Data Analysis**
-- **Extended Quality Flags**: Improved `suspicious_enrichment` and `not_in_TAM` detection
-- **Email Domain Field**: New `email_domain` returned for all lead queries
-- **Unicode JSON Support**: Proper emoji display in API responses
-- **Cross-Field Validation**: Advanced consistency checks between ZoomInfo enrichment fields
-- **Flexible SOQL Queries**: Support for JOINs, UNIONs, and complex queries that return Lead IDs
+✅ **Professional Excel Export & Reporting**
+- **Comprehensive Reports**: All 10 core fields plus 7 assessment outputs (confidence, explanations, corrections, inferences)
+- **Visual Excellence**: Color-coded confidence scores, bordered tables, professional formatting
+- **Summary Analytics**: Total leads, issue percentages, average confidence, trend analysis
+- **Business-Ready Output**: Timestamped files with organized structure for executive reporting
+- **Sample Available**: View [`docs/sample_excel.xlsx`](sample_excel.xlsx) for example export format
 
-✅ **Dependencies Updated to Latest Versions**
-- **Flask 3.1.1** - Latest stable with improved performance and security
-- **simple-salesforce 1.12.6** - Enhanced JWT support, Bulk2.0 features, OAuth2 endpoints
-- **python-dotenv 1.0.1** - Latest bug fixes and stability improvements
-- **OpenAI 1.90.0+** - Latest API features and improved response handling
-- **openpyxl 3.1.5** - Excel file generation and professional formatting
+✅ **Performance & User Experience Excellence**
+- **10x Faster Execution**: Optimized batch processing and intelligent query optimization
+- **Two-Step Workflow**: Preview queries before analysis for better control and validation
+- **Smart UI Controls**: Context-aware interface with proper state management
+- **Interactive Web Interface**: Real-time feedback and comprehensive testing capabilities
 
-🚀 **Technical Improvements**
-- Enhanced type hints and linter error resolution
-- Improved error handling and connection management
-- Unicode-safe JSON serialization for international characters
-- Modular Excel service architecture for extensible reporting
+✅ **Quality Detection & Validation**
+- **Advanced Quality Flags**: Enhanced `not_in_TAM` and `suspicious_enrichment` detection
+- **Website Consistency Checks**: Validate alignment between multiple website sources
+- **Company Size Agreement**: Cross-validate ZoomInfo employee counts with internal size estimates
+- **Email Domain Intelligence**: Corporate vs. free email validation with business logic
+- **Cross-Field Validation**: Advanced consistency checks across all enrichment fields
+
+✅ **Enterprise Architecture & Dependencies**
+- **Flask 3.1.1**: Latest stable framework with enhanced security and performance
+- **simple-salesforce 1.12.6**: Enhanced JWT support, Bulk2.0 features, OAuth2 endpoints
+- **OpenAI 1.90.0+**: Latest API features and improved response handling
+- **openpyxl 3.1.5**: Professional Excel file generation and formatting
+- **Modular Design**: Clean service layer separation with extensible architecture
 
 ## Project Structure
 
@@ -184,12 +192,14 @@ curl -X POST http://localhost:5000/leads/analyze-query/export \
   "message": "Lead confidence assessment completed successfully",
   "lead_data": {
     "Id": "00Q5e00000ABC123",
-    "First_Channel__c": "Website",
-    "ZI_Company_Name__c": "ACI Solutions Inc",
     "Email": "lmcguire@acisolutions.net",
+    "First_Channel__c": "Website",
+    "SegmentName": "SMB",
+    "LS_Company_Size_Range__c": "1-50",
     "Website": "acisolutions.net",
+    "ZI_Website__c": "https://acisolutions.net",
+    "ZI_Company_Name__c": "ACI Solutions Inc",
     "ZI_Employees__c": 24,
-    "LS_Enrichment_Status__c": "true",
     "email_domain": "acisolutions.net",
     "not_in_TAM": false,
     "suspicious_enrichment": false
@@ -220,12 +230,15 @@ curl -X POST http://localhost:5000/leads/analyze-query/export \
   "message": "Lead retrieved successfully with analysis",
   "lead": {
     "Id": "00Q5e00000ABC123",
-    "First_Channel__c": "Website",
-    "ZI_Company_Name__c": "Example Corp",
     "Email": "john.doe@gmail.com",
+
+    "First_Channel__c": "Website",
+    "SegmentName": "Enterprise",
+    "LS_Company_Size_Range__c": "201-500",
     "Website": null,
+    "ZI_Website__c": null,
+    "ZI_Company_Name__c": "Example Corp",
     "ZI_Employees__c": 250,
-    "LS_Enrichment_Status__c": "SUCCESS",
     "email_domain": "gmail.com",
     "not_in_TAM": false,
     "suspicious_enrichment": true
@@ -238,40 +251,66 @@ In this example:
 - `not_in_TAM: false` - Company name is populated, so it's in TAM base
 - `suspicious_enrichment: true` - Gmail email + no website + company name + >100 employees suggests potential enrichment issue
 
-## Lead Fields Returned
+## Comprehensive Lead Data Fields
 
-The API returns the following ZoomInfo-related fields:
+The API collects and analyzes 10 core fields for comprehensive ZoomInfo enrichment assessment:
 
-### **Core Lead Data**
+### **Core Lead Data (Trusted Sources)**
 - `Id` - Salesforce Lead ID
-- `First_Channel__c` - First channel information
-- `ZI_Company_Name__c` - ZoomInfo company name
-- `Email` - Lead email address
-- `Website` - Company website
-- `ZI_Employees__c` - ZoomInfo employee count
-- `LS_Enrichment_Status__c` - Lead enrichment status
+- `Email` - Lead email address (provided directly by lead)
+- `First_Channel__c` - Channel lead came in through (Website, Webinar, etc.)
+- `SegmentName` - Sales segment classification (SMB, Mid-Market, Enterprise)
+- `LS_Company_Size_Range__c` - Internal company size range estimate (1-50, 51-200, etc.)
 
-### **Enhanced ZoomInfo Analysis Fields**
-- `email_domain` - Extracted email domain for validation
-- `not_in_TAM` - Boolean indicating if lead should be in RC TAM base
-  - `true` when `ZI_Employees__c > 100` but `ZI_Company_Name__c` is null
-  - Suggests incomplete ZoomInfo enrichment for companies that should be in Total Addressable Market
-- `suspicious_enrichment` - Boolean indicating potentially incorrect ZoomInfo enrichment
-  - `true` when email has free domain (gmail, yahoo, etc.) + no website + company name populated + >100 employees
-  - Suggests ZoomInfo enrichment may have incorrectly associated personal email with large company
+### **Website Data Sources (Cross-Validation)**
+- `Website` - Company website (lead-provided or sales rep entered)
+- `ZI_Website__c` - Company website (ZoomInfo enriched)
+- **Validation Logic**: Compare both sources for consistency and alignment with email domain
 
-### **AI-Powered ZoomInfo Assessment Fields**
-- `confidence_score` - Overall ZoomInfo enrichment confidence rating (0-100)
-- `explanation_bullets` - 3-5 clear explanations with emoji indicators for enrichment reliability
-- `corrections` - High-confidence fixes suggested by AI for ZoomInfo data
-- `inferences` - Lower-confidence guesses for missing ZoomInfo enrichment data
+### **ZoomInfo Enrichment Data (To Be Validated)**
+- `ZI_Company_Name__c` - Company name enriched by ZoomInfo
+- `ZI_Employees__c` - Employee count enriched by ZoomInfo
+- **Cross-Validation**: Compare against `LS_Company_Size_Range__c` and `SegmentName`
+
+### **Computed Analysis Fields**
+- `email_domain` - Extracted email domain for corporate vs. free email analysis
+- `not_in_TAM` - Quality flag for large companies missing ZoomInfo enrichment
+  - `true` when `ZI_Employees__c > 100` AND `ZI_Company_Name__c` is null/empty
+  - Indicates incomplete enrichment for companies that should be in Total Addressable Market
+- `suspicious_enrichment` - Quality flag for potentially incorrect ZoomInfo data
+  - `true` when: free email domain + no website + company name + >100 employees
+  - Suggests ZoomInfo may have incorrectly matched personal email with large company data
+
+### **AI-Powered Assessment Results**
+- `confidence_score` - Overall ZoomInfo enrichment reliability rating (0-100)
+- `explanation_bullets` - 3-5 clear explanations with emoji indicators (✅ ⚠️ ❌)
+- `corrections` - High-confidence fixes for conflicting ZoomInfo data (≥80% confidence)
+- `inferences` - Lower-confidence guesses for missing enrichment data (≥40% confidence)
+
+### **Enhanced Validation Capabilities**
+
+**Website Consistency Validation:**
+- Compare `Website` vs `ZI_Website__c` for alignment
+- Validate both against `email_domain` if corporate domain
+- Flag discrepancies for manual review
+
+**Company Size Agreement Analysis:**
+- Cross-validate `ZI_Employees__c` vs `LS_Company_Size_Range__c`
+- Use `SegmentName` as additional context
+- Identify significant discrepancies and determine more accurate source
+
+**Business Context Integration:**
+- Use `First_Channel__c` to understand lead source quality
+- Apply `SegmentName` for segment-appropriate validation rules
+- Consider sales context in confidence scoring
 
 ### **Excel Export Features**
 - **Professional Formatting**: Color-coded confidence scores, bordered tables, proper column sizing
 - **Summary Statistics**: Analysis overview including total leads, issue percentages, average confidence
 - **Visual Indicators**: Red highlighting for quality issues, traffic light colors for confidence scores
-- **Comprehensive Data**: All lead fields, confidence assessments, explanations, corrections, and inferences
+- **Comprehensive Data**: All 10 core fields plus 7 assessment outputs (17 total columns)
 - **Timestamped Files**: Automatic naming with date/time for easy organization
+- **Sample Export**: View [`sample_excel.xlsx`](sample_excel.xlsx) for example output format
 
 ## SOQL Query Support
 
@@ -351,6 +390,18 @@ The following are **blocked for security**:
 4. **Flexible Structure**: JOINs, UNIONs, subqueries allowed if they return Lead IDs
 
 ## Development
+
+### Sample Excel Export
+
+**View the complete sample export at [`sample_excel.xlsx`](sample_excel.xlsx)** to see:
+
+- **Professional Business Format**: Color-coded confidence scores with traffic light system
+- **Comprehensive Analysis**: All 10 core lead fields plus 7 AI assessment outputs
+- **Summary Statistics**: Overview including total leads, average confidence, issue percentages
+- **Visual Excellence**: Bordered tables, proper column sizing, business-ready formatting
+- **Real Data Examples**: Actual ZoomInfo enrichment assessments with AI explanations
+
+The sample demonstrates how the API transforms raw lead data into actionable business intelligence with clear visual indicators for data quality issues.
 
 ### Project Architecture
 - **Flask Application Factory Pattern**: Clean app initialization
