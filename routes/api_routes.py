@@ -245,7 +245,7 @@ def get_lead_confidence_assessment(lead_id):
 
 @api_bp.route('/leads/analyze-query', methods=['POST'])
 def analyze_leads_query():
-    """Analyze leads from a custom SOQL query"""
+    """Analyze leads from a custom SOQL query that returns Lead IDs only"""
     try:
         # Get JSON data from request
         if not request.is_json:
@@ -357,7 +357,7 @@ def preview_leads_query():
 
 @api_bp.route('/leads/analyze-query/export', methods=['POST'])
 def export_analyze_query_excel():
-    """Export analyze-query results to Excel file"""
+    """Export analyze-query results to Excel file (SOQL query must return Lead IDs only)"""
     try:
         # Get JSON data from request
         if not request.is_json:
