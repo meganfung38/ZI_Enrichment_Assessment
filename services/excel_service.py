@@ -10,15 +10,26 @@ class ExcelService:
     """Service for exporting lead analysis data to Excel format"""
     
     def __init__(self):
+        # RingCentral Brand Colors
+        self.rc_cerulean = "0684BC"      # RingCentral primary blue
+        self.rc_orange = "FF7A00"        # RingCentral orange
+        self.rc_ocean = "002855"         # RingCentral dark blue
+        self.rc_linen = "F1EFEC"         # RingCentral background
+        self.rc_ash = "C8C2B4"           # RingCentral light gray
+        self.rc_warm_black = "2B2926"    # RingCentral dark gray
+        
+        # Excel Styling with RingCentral Colors
         self.header_font = Font(bold=True, color="FFFFFF")
-        self.header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
-        self.summary_font = Font(bold=True, color="000000")
-        self.summary_fill = PatternFill(start_color="E7F3FF", end_color="E7F3FF", fill_type="solid")
+        self.header_fill = PatternFill(start_color=self.rc_cerulean, end_color=self.rc_cerulean, fill_type="solid")
+        self.summary_font = Font(bold=True, color=self.rc_ocean)
+        self.summary_fill = PatternFill(start_color=self.rc_linen, end_color=self.rc_linen, fill_type="solid")
+        self.title_font = Font(bold=True, size=16, color=self.rc_ocean)
+        self.accent_fill = PatternFill(start_color=self.rc_orange, end_color=self.rc_orange, fill_type="solid")
         self.border = Border(
-            left=Side(style='thin'),
-            right=Side(style='thin'),
-            top=Side(style='thin'),
-            bottom=Side(style='thin')
+            left=Side(style='thin', color=self.rc_ash),
+            right=Side(style='thin', color=self.rc_ash),
+            top=Side(style='thin', color=self.rc_ash),
+            bottom=Side(style='thin', color=self.rc_ash)
         )
         self.center_alignment = Alignment(horizontal='center', vertical='center')
         self.wrap_alignment = Alignment(horizontal='left', vertical='top', wrap_text=True)
@@ -33,7 +44,7 @@ class ExcelService:
         current_row = 1
         ws.merge_cells(f'A{current_row}:L{current_row}')
         ws[f'A{current_row}'] = "ZoomInfo Lead Quality Analysis Report"
-        ws[f'A{current_row}'].font = Font(bold=True, size=16)
+        ws[f'A{current_row}'].font = self.title_font
         ws[f'A{current_row}'].alignment = self.center_alignment
         current_row += 1
         
@@ -181,20 +192,26 @@ class ExcelService:
             cell = ws.cell(row=row, column=col, value=value)
             cell.border = self.border
             
-            # Special formatting for certain columns
+            # Special formatting for certain columns with RingCentral colors
             if col in [11, 12]:  # Boolean flags (Not in TAM, Suspicious Enrichment)
                 cell.alignment = self.center_alignment
                 if value == 'Yes':
+                    # Light red background for issues (softer than pure red)
                     cell.fill = PatternFill(start_color="FFE6E6", end_color="FFE6E6", fill_type="solid")
-            elif col == 13:  # Confidence score
+                    cell.font = Font(bold=True, color=self.rc_warm_black)
+            elif col == 13:  # Confidence score with RingCentral color scheme
                 cell.alignment = self.center_alignment
+                cell.font = Font(bold=True, color="FFFFFF")
                 if isinstance(value, (int, float)) and value > 0:
                     if value >= 80:
-                        cell.fill = PatternFill(start_color="E6FFE6", end_color="E6FFE6", fill_type="solid")
+                        # High confidence: RingCentral Cerulean (primary blue)
+                        cell.fill = PatternFill(start_color=self.rc_cerulean, end_color=self.rc_cerulean, fill_type="solid")
                     elif value >= 60:
-                        cell.fill = PatternFill(start_color="FFFACD", end_color="FFFACD", fill_type="solid")
+                        # Medium confidence: RingCentral Orange
+                        cell.fill = PatternFill(start_color=self.rc_orange, end_color=self.rc_orange, fill_type="solid")
                     else:
-                        cell.fill = PatternFill(start_color="FFE6E6", end_color="FFE6E6", fill_type="solid")
+                        # Low confidence: Muted red with dark text
+                        cell.fill = PatternFill(start_color="DC3545", end_color="DC3545", fill_type="solid")
             elif col in [14, 15, 16]:  # Text fields that might be long (Explanation, Corrections, Inferences)
                 cell.alignment = self.wrap_alignment
     
@@ -386,10 +403,10 @@ class ExcelService:
             ws = wb.active
             ws.title = "Analysis Results"
             
-            # Add title
+            # Add title with RingCentral styling
             ws.merge_cells(f'A1:{get_column_letter(len(df_original.columns))}1')
             ws['A1'] = "Excel Upload Analysis Results"
-            ws['A1'].font = Font(bold=True, size=16)
+            ws['A1'].font = self.title_font
             ws['A1'].alignment = self.center_alignment
             
             # Add timestamp
@@ -412,21 +429,27 @@ class ExcelService:
                     cell = ws.cell(row=row_idx, column=col_idx, value=value)
                     cell.border = self.border
                     
-                    # Special formatting for AI columns
+                    # Special formatting for AI columns with RingCentral colors
                     header = df_original.columns[col_idx - 1]
                     if header in ['AI_Not_in_TAM', 'AI_Suspicious_Enrichment']:
                         cell.alignment = self.center_alignment
                         if value == 'Yes':
+                            # Light red background for issues
                             cell.fill = PatternFill(start_color="FFE6E6", end_color="FFE6E6", fill_type="solid")
+                            cell.font = Font(bold=True, color=self.rc_warm_black)
                     elif header == 'AI_Confidence_Score':
                         cell.alignment = self.center_alignment
+                        cell.font = Font(bold=True, color="FFFFFF")
                         if isinstance(value, (int, float)) and value > 0:
                             if value >= 80:
-                                cell.fill = PatternFill(start_color="E6FFE6", end_color="E6FFE6", fill_type="solid")
+                                # High confidence: RingCentral Cerulean (primary blue)
+                                cell.fill = PatternFill(start_color=self.rc_cerulean, end_color=self.rc_cerulean, fill_type="solid")
                             elif value >= 60:
-                                cell.fill = PatternFill(start_color="FFFACD", end_color="FFFACD", fill_type="solid")
+                                # Medium confidence: RingCentral Orange
+                                cell.fill = PatternFill(start_color=self.rc_orange, end_color=self.rc_orange, fill_type="solid")
                             else:
-                                cell.fill = PatternFill(start_color="FFE6E6", end_color="FFE6E6", fill_type="solid")
+                                # Low confidence: Muted red
+                                cell.fill = PatternFill(start_color="DC3545", end_color="DC3545", fill_type="solid")
                     elif header in ['AI_Explanation', 'AI_Corrections', 'AI_Inferences']:
                         cell.alignment = self.wrap_alignment
             
