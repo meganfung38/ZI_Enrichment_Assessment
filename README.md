@@ -41,7 +41,7 @@ python app.py
 - **Visual Formatting**: Color-coded confidence scores, bordered tables, proper column sizing
 - **Summary Statistics**: Analysis overview including total leads, issue percentages, average confidence
 - **Timestamped Files**: Automatic naming with date/time for easy organization
-- **Sample Exports**: See [`docs/sample_excel.xlsx`](docs/sample_excel.xlsx) for single lead format and [`docs/sample_result.xlsx`](docs/sample_result.xlsx) for bulk analysis report (leads with employee count > 1000)
+- **Sample Export**: See [`docs/sample_result.xlsx`](docs/sample_result.xlsx) for bulk analysis report (leads with employee count > 1000)
 
 ✅ **AI-Powered ZoomInfo Enrichment Assessment**
 - **Enhanced Validation**: 12+ data points for comprehensive enrichment quality assessment
@@ -62,6 +62,7 @@ python app.py
 - **OpenAI 1.90.0+**: Latest API features and improved response handling
 - **openpyxl 3.1.5**: Professional Excel file generation and formatting
 - **Modular Design**: Clean separation of concerns with service layer architecture
+- **Organized UI Structure**: Templates, CSS, and JavaScript properly separated following Flask best practices
 
 ## Key Features
 
@@ -108,6 +109,7 @@ python app.py
 🚀 **Enterprise Architecture**
 - **Flask 3.1.1**: Latest stable framework with enhanced security and performance
 - **Modular Design**: Clean service layer separation with extensible architecture
+- **MVC Structure**: Proper template/static asset organization following Flask best practices
 - **OpenAI Integration**: Latest API features (v1.90.0+) for advanced AI-powered analysis
 - **Professional Reporting**: openpyxl 3.1.5 integration for business-grade Excel output
 - **Salesforce Optimized**: Enhanced simple-salesforce 1.12.6 with improved query capabilities
@@ -163,11 +165,19 @@ The API generates professional Excel reports with comprehensive ZoomInfo enrichm
 
 ```
 ZI_Enrichment_Assessment/
-├── app.py                           # 🚀 Main Flask application with UI
+├── app.py                           # 🚀 Main Flask application (clean & organized)
+├── templates/                       # 🎨 HTML Templates
+│   └── ui.html                     # Interactive web UI template
+├── static/                         # 📁 Static Assets
+│   ├── css/
+│   │   └── ringcentral-theme.css   # RingCentral brand styling
+│   └── js/
+│       └── ui-handlers.js          # JavaScript event handlers & functionality
 ├── docs/                           # 📚 Comprehensive Documentation
 │   ├── README.md                   # Complete API guide & examples
 │   ├── project_breakdown.md        # Project requirements & specifications
-│   └── lead_data_interpretation.md # AI scoring methodology & field definitions
+│   ├── lead_data_interpretation.md # AI scoring methodology & field definitions
+│   └── sample_result.xlsx          # Bulk analysis report example
 ├── config/                         # ⚙️  Configuration Management
 │   ├── config.py                   # Environment-based configuration
 │   ├── requirements.txt            # Python dependencies (Flask 3.1.1, OpenAI 1.90.0+)
@@ -183,10 +193,16 @@ ZI_Enrichment_Assessment/
 ### **Key Components:**
 
 **🚀 Flask Application (`app.py`)**
-- Application factory pattern with blueprints
-- Interactive web UI for testing and analysis
+- Clean, organized application factory pattern with blueprints
+- Template-based UI rendering (MVC architecture)
 - Environment-based configuration management
 - Unicode-safe JSON responses
+
+**🎨 UI Components (Separated & Organized)**
+- **`templates/ui.html`**: Clean HTML template with RingCentral branding
+- **`static/css/ringcentral-theme.css`**: Professional RingCentral brand styling
+- **`static/js/ui-handlers.js`**: Modular JavaScript event handlers and functionality
+- **Maintainable Architecture**: Clear separation between frontend and backend code
 
 **📊 Salesforce Service (`services/salesforce_service.py`)**
 - **Enhanced Data Collection**: 10 core fields including segment, size ranges, dual websites

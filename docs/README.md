@@ -30,7 +30,7 @@ A Flask API for assessing the quality and reliability of ZoomInfo-enriched lead 
 - **Visual Excellence**: Color-coded confidence scores, bordered tables, professional formatting
 - **Summary Analytics**: Total leads, issue percentages, average confidence, trend analysis
 - **Business-Ready Output**: Timestamped files with organized structure for executive reporting
-- **Sample Exports**: View [`sample_excel.xlsx`](sample_excel.xlsx) for single lead format and [`sample_result.xlsx`](sample_result.xlsx) for bulk analysis report (leads with employee count > 1000)
+- **Sample Export**: View [`sample_result.xlsx`](sample_result.xlsx) for bulk analysis report (leads with employee count > 1000)
 
 ✅ **Performance & User Experience Excellence**
 - **10x Faster Execution**: Optimized batch processing and intelligent query optimization
@@ -51,16 +51,25 @@ A Flask API for assessing the quality and reliability of ZoomInfo-enriched lead 
 - **OpenAI 1.90.0+**: Latest API features and improved response handling
 - **openpyxl 3.1.5**: Professional Excel file generation and formatting
 - **Modular Design**: Clean service layer separation with extensible architecture
+- **Organized UI Structure**: Templates, CSS, and JavaScript properly separated following Flask best practices
 
 ## Project Structure
 
 ```
 ZI_Enrichment_Assessment/
-├── app.py                    # Main Flask application
+├── app.py                    # Main Flask application (clean & organized)
+├── templates/                # HTML Templates
+│   └── ui.html              # Interactive web UI template
+├── static/                   # Static Assets
+│   ├── css/
+│   │   └── ringcentral-theme.css  # RingCentral brand styling
+│   └── js/
+│       └── ui-handlers.js    # JavaScript event handlers & functionality
 ├── docs/                     # Documentation
 │   ├── README.md            # This file
 │   ├── project_breakdown.md # Project requirements & overview
-│   └── lead_data_interpretation.md # AI scoring methodology
+│   ├── lead_data_interpretation.md # AI scoring methodology
+│   └── sample_result.xlsx   # Bulk analysis report example
 ├── config/                   # Configuration files
 │   ├── config.py            # Application configuration
 │   ├── requirements.txt     # Python dependencies
@@ -411,9 +420,11 @@ The API provides two types of professional Excel reports:
 Both samples demonstrate how the API transforms raw lead data into actionable business intelligence with clear visual indicators for data quality issues.
 
 ### Project Architecture
-- **Flask Application Factory Pattern**: Clean app initialization
+- **Flask Application Factory Pattern**: Clean app initialization with template rendering
+- **MVC Architecture**: Proper separation of templates, static assets, and application logic
 - **Blueprints**: Organized route management
 - **Service Layer**: Separation of business logic
+- **Static Asset Organization**: CSS and JavaScript properly separated and organized
 - **Configuration Management**: Environment-based config
 - **AI Integration**: OpenAI-powered confidence scoring
 
