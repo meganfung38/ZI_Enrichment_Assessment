@@ -41,7 +41,7 @@ python app.py
 - **Visual Formatting**: Color-coded confidence scores, bordered tables, proper column sizing
 - **Summary Statistics**: Analysis overview including total leads, issue percentages, average confidence
 - **Timestamped Files**: Automatic naming with date/time for easy organization
-- **Sample Export**: See [`docs/sample_excel.xlsx`](docs/sample_excel.xlsx) for example output format
+- **Sample Exports**: See [`docs/sample_excel.xlsx`](docs/sample_excel.xlsx) for single lead format and [`docs/sample_result.xlsx`](docs/sample_result.xlsx) for bulk analysis report (leads with employee count > 1000)
 
 ✅ **AI-Powered ZoomInfo Enrichment Assessment**
 - **Enhanced Validation**: 12+ data points for comprehensive enrichment quality assessment
@@ -134,15 +134,21 @@ curl http://localhost:5000/lead/00Q5e00000ABC123/confidence/export -o lead_asses
 # POST /leads/analyze-query/export - Export bulk analysis to Excel
 ```
 
-## Sample Excel Export
+## Sample Excel Exports
 
-The API generates professional Excel reports with comprehensive ZoomInfo enrichment analysis. **View the sample export format at [`docs/sample_excel.xlsx`](docs/sample_excel.xlsx)** which includes:
+The API generates professional Excel reports with comprehensive ZoomInfo enrichment analysis:
 
+**Single Lead Analysis**: **View the sample format at [`docs/sample_excel.xlsx`](docs/sample_excel.xlsx)** which includes:
 - **17 Total Columns**: 10 core lead fields + 7 AI assessment outputs
 - **Color-Coded Confidence**: Traffic light system (Red: 0-59, Yellow: 60-79, Green: 80-100)
 - **Professional Formatting**: Bordered tables, proper column sizing, business-ready appearance
-- **Summary Statistics**: Total leads analyzed, issue percentages, average confidence scores
 - **Comprehensive Data**: All lead data, AI explanations, corrections, and inferences in one report
+
+**Bulk Analysis Report**: **View the sample at [`docs/sample_result.xlsx`](docs/sample_result.xlsx)** which shows:
+- **Bulk Lead Analysis**: Multiple leads analyzed in a single report (example: leads with employee count > 1000)
+- **Summary Statistics**: Total leads analyzed, issue percentages, average confidence scores
+- **Batch Processing Results**: Demonstrates the system's ability to handle multiple leads efficiently
+- **Executive Reporting**: Business-ready format for stakeholder presentations
 
 ## Documentation
 

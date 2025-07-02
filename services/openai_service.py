@@ -40,18 +40,31 @@ LEAD_QA_SYSTEM_PROMPT = """You are a data quality assistant. Your job is to eval
 
 ## 3 Inference and Correction– Can anything be fixed?
 
-* Using the trusted fields (Email, email_domain, etc.) and external sources (Clearbit, LinkedIn, Hunter.io MX lookup, OpenCorporates), infer the company name, primary website, and employee range associated with the lead.     
-* Do NOT correct URL formatting differences: "example.com" vs "https://example.com" vs "www.example.com" are the SAME website  
-* Do NOT correct protocol, www, case, or trailing slash differences  
-* Check ALL fields before inferring: Extract core domain (remove protocol/www) and compare  
-1. Corrections (high confidence fixes for conflicting data):   
-* Only add to `corrections` if a ZoomInfo field CONFLICTS with trusted internal data or external sources     
-* Only correct meaningful business contradictions (wrong company name, drastically different employee count)  
-2. Inferences (Fill in MISSING data with high confidence):    
-* Only add to `inferences` for ZoomInfo fields that are NULL/empty AND you have >= 0.40 confidence    
-* Do NOT infer if same domain already exists: If Website="example.com" exists, do NOT infer ZI_Website__c="https://example.com"  
-* Only infer truly missing information, not alternative formats of existing data  
-3. Validation Rule: Before outputting corrections/inferences, ask: "Is this meaningfully different information or just reformatting existing data?" If reformatting, do NOT include.
+1. Using the trusted fields (Email, email_domain, etc.) and external sources (Clearbit, LinkedIn, Hunter.io MX lookup, OpenCorporates), infer the company name, primary website, and employee range associated with the lead.     
+2. CORRECTIONS (high confidence fixes for conflicting data):   
+* Only add to `corrections` if a ZoomInfo field CONFLICTS with trusted internal data or external sources       
+* URL Formatting Rule: Do NOT correct URL formatting differences for the SAME domain:  
+  * ❌ "example.com" → "https://example.com" (same domain)  
+  * ❌ "www.site.org/" → "site.org" (same domain)  
+* DO make corrections for meaningful conflicts:  
+  * ✅ Wrong company name: "Runway Post" → "Virtuoso DesignBuild" (based on email domain)  
+  * ✅ Drastically different employee count based on external sources  
+  *  ✅ Wrong website domain: "facebook.com" → "virtuosodesignbuild.com" (if supported by email/external data)  
+3. INFERENCES (Fill in MISSING data with high confidence):      
+* Only add to `inferences` for ZoomInfo fields that are NULL/empty AND you have >= 0.40 confidence      
+* URL Formatting Rule: Do NOT infer URL variations of the SAME domain:  
+  * ❌ If Website="example.com" exists, do NOT infer ZI_Website__c="https://example.com"  
+* DO make inferences for different domains/missing data:  
+  * ✅ If Website="facebook.com/pages/..." and email="user@company.com", infer ZI_Website__c="company.com"  
+  *  ✅ If ZI_Company_Name__c is null and email="user@company.com", infer company name  
+  *  ✅ If ZI_Employees__c is null and external sources suggest a number, infer it  
+* Domain Extraction Check: Extract core domain (remove protocol/www/paths) and only avoid if core domains match  
+* VALIDATION EXAMPLES:  
+  * FORBIDDEN (same domain): Website="aoreed.com" → infer ZI_Website__c="https://aoreed.com"  
+  * ALLOWED (different domain): Website="facebook.com/pages/Company" → infer ZI_Website__c="company.com"   
+  * ALLOWED (missing data): ZI_Company_Name__c=null → infer "Company Name" from email domain  
+  * ALLOWED (conflicting data): ZI_Company_Name__c="Wrong Name" → correct to "Right Name" from email  
+4. Final Check: Ask "Is this the same core domain/company or genuinely different information?" Only avoid it if it's the same.
 
 ## 4 Scoring– How Trustworthy is this record overall? 
 
@@ -118,6 +131,120 @@ def test_openai_completion(prompt="Hello! Please respond with 'OpenAI connection
     except Exception as e:
         return None, f"Error generating completion: {str(e)}"
 
+def validate_and_clean_assessment(assessment, lead_data):
+    """
+    Remove redundant corrections and inferences that are just URL formatting differences or cross-field duplicates
+    """
+    def extract_core_domain(url):
+        """Extract core domain from URL, removing protocol, www, paths, etc."""
+        if not url:
+            return None
+        
+        # Convert to string and clean
+        url = str(url).strip().lower()
+        
+        # Handle edge cases
+        if url in ['null', 'none', 'n/a', '']:
+            return None
+        
+        # Remove protocols
+        url = url.replace('https://', '').replace('http://', '')
+        
+        # Remove www prefix
+        if url.startswith('www.'):
+            url = url[4:]
+        
+        # Remove trailing slash and paths
+        url = url.split('/')[0]
+        
+        # Remove trailing dots
+        url = url.rstrip('.')
+        
+        return url if url else None
+    
+    def are_same_domain(url1, url2):
+        """Check if two URLs represent the same domain"""
+        domain1 = extract_core_domain(url1)
+        domain2 = extract_core_domain(url2)
+        return domain1 and domain2 and domain1 == domain2
+    
+    def normalize_url_for_comparison(url):
+        """Normalize URL for exact string comparison (handles case, whitespace)"""
+        if not url:
+            return None
+        return str(url).strip().lower()
+    
+    # Get existing website values from lead data
+    existing_websites = {
+        'Website': lead_data.get('Website'),
+        'ZI_Website__c': lead_data.get('ZI_Website__c')
+    }
+    
+    # Clean corrections
+    cleaned_corrections = {}
+    for field, value in assessment.get('corrections', {}).items():
+        should_keep = True
+        
+        if field in ['Website', 'ZI_Website__c']:
+            # Check if this correction is just a formatting change of the same field
+            existing_value = existing_websites.get(field)
+            if existing_value and are_same_domain(existing_value, value):
+                should_keep = False
+                print(f"🧹 Removed redundant correction: {field} '{existing_value}' -> '{value}' (same domain)")
+            
+            # Check for exact string matches (case-insensitive)
+            if should_keep and existing_value:
+                if normalize_url_for_comparison(existing_value) == normalize_url_for_comparison(value):
+                    should_keep = False
+                    print(f"🧹 Removed redundant correction: {field} '{existing_value}' -> '{value}' (exact match)")
+            
+            # Also check if this correction matches any other website field (cross-field redundancy)
+            if should_keep:
+                for other_field, other_value in existing_websites.items():
+                    if other_field != field and other_value:
+                        # Check domain match
+                        if are_same_domain(other_value, value):
+                            should_keep = False
+                            print(f"🧹 Removed redundant correction: {field} '{value}' (same domain as {other_field}: '{other_value}')")
+                            break
+                        # Check exact string match
+                        if normalize_url_for_comparison(other_value) == normalize_url_for_comparison(value):
+                            should_keep = False
+                            print(f"🧹 Removed redundant correction: {field} '{value}' (exact match with {other_field}: '{other_value}')")
+                            break
+        
+        if should_keep:
+            cleaned_corrections[field] = value
+    
+    # Clean inferences
+    cleaned_inferences = {}
+    for field, value in assessment.get('inferences', {}).items():
+        should_keep = True
+        
+        if field in ['Website', 'ZI_Website__c']:
+            # Check if any existing website field has the same domain or exact match
+            for existing_field, existing_value in existing_websites.items():
+                if existing_value:
+                    # Check domain match
+                    if are_same_domain(existing_value, value):
+                        should_keep = False
+                        print(f"🧹 Removed redundant inference: {field} '{value}' (same domain as {existing_field}: '{existing_value}')")
+                        break
+                    # Check exact string match
+                    if normalize_url_for_comparison(existing_value) == normalize_url_for_comparison(value):
+                        should_keep = False
+                        print(f"🧹 Removed redundant inference: {field} '{value}' (exact match with {existing_field}: '{existing_value}')")
+                        break
+        
+        if should_keep:
+            cleaned_inferences[field] = value
+    
+    # Update assessment
+    assessment['corrections'] = cleaned_corrections
+    assessment['inferences'] = cleaned_inferences
+    
+    return assessment
+
 def generate_lead_confidence_assessment(lead_data):
     """Generate confidence assessment for lead data using OpenAI"""
     try:
@@ -159,6 +286,10 @@ Please provide your assessment in the required JSON format."""
         # Try to parse the JSON response
         try:
             assessment = json.loads(response_content)
+            
+            # 🧹 VALIDATE AND CLEAN the assessment to remove redundant URL corrections/inferences
+            assessment = validate_and_clean_assessment(assessment, lead_data)
+            
             return assessment, "Assessment generated successfully"
         except json.JSONDecodeError:
             # If JSON parsing fails, return the raw response with an error

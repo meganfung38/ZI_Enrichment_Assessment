@@ -30,7 +30,7 @@ A Flask API for assessing the quality and reliability of ZoomInfo-enriched lead 
 - **Visual Excellence**: Color-coded confidence scores, bordered tables, professional formatting
 - **Summary Analytics**: Total leads, issue percentages, average confidence, trend analysis
 - **Business-Ready Output**: Timestamped files with organized structure for executive reporting
-- **Sample Available**: View [`docs/sample_excel.xlsx`](sample_excel.xlsx) for example export format
+- **Sample Exports**: View [`sample_excel.xlsx`](sample_excel.xlsx) for single lead format and [`sample_result.xlsx`](sample_result.xlsx) for bulk analysis report (leads with employee count > 1000)
 
 ✅ **Performance & User Experience Excellence**
 - **10x Faster Execution**: Optimized batch processing and intelligent query optimization
@@ -391,17 +391,24 @@ The following are **blocked for security**:
 
 ## Development
 
-### Sample Excel Export
+### Sample Excel Exports
 
-**View the complete sample export at [`sample_excel.xlsx`](sample_excel.xlsx)** to see:
+The API provides two types of professional Excel reports:
 
+**Single Lead Analysis**: **View the complete sample at [`sample_excel.xlsx`](sample_excel.xlsx)** to see:
 - **Professional Business Format**: Color-coded confidence scores with traffic light system
 - **Comprehensive Analysis**: All 10 core lead fields plus 7 AI assessment outputs
-- **Summary Statistics**: Overview including total leads, average confidence, issue percentages
+- **Individual Lead Focus**: Detailed assessment for single lead confidence analysis
 - **Visual Excellence**: Bordered tables, proper column sizing, business-ready formatting
+
+**Bulk Analysis Report**: **View the bulk sample at [`sample_result.xlsx`](sample_result.xlsx)** to see:
+- **Multiple Lead Processing**: Bulk analysis of leads with employee count > 1000
+- **Summary Statistics**: Overview including total leads, average confidence, issue percentages
+- **Executive Reporting**: Business-ready format for stakeholder presentations
+- **Batch Processing Results**: Demonstrates efficient handling of multiple leads simultaneously
 - **Real Data Examples**: Actual ZoomInfo enrichment assessments with AI explanations
 
-The sample demonstrates how the API transforms raw lead data into actionable business intelligence with clear visual indicators for data quality issues.
+Both samples demonstrate how the API transforms raw lead data into actionable business intelligence with clear visual indicators for data quality issues.
 
 ### Project Architecture
 - **Flask Application Factory Pattern**: Clean app initialization
