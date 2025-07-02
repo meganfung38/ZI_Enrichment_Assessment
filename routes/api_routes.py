@@ -618,3 +618,406 @@ def export_lead_confidence_excel(lead_id):
             'status': 'error',
             'message': f'Error exporting lead confidence assessment: {str(e)}'
         }), 500
+
+@api_bp.route('/excel/parse', methods=['POST'])
+def parse_excel_file():
+    """Parse uploaded Excel file and return sheet names and preview data"""
+    try:
+        # Check if file is present
+        if 'file' not in request.files:
+            return jsonify({
+                'status': 'error',
+                'message': 'No file uploaded'
+            }), 400
+        
+        file = request.files['file']
+        
+        if file.filename == '':
+            return jsonify({
+                'status': 'error',
+                'message': 'No file selected'
+            }), 400
+        
+        # Validate file extension
+        if not file.filename.lower().endswith(('.xlsx', '.xls')):
+            return jsonify({
+                'status': 'error',
+                'message': 'File must be an Excel file (.xlsx or .xls)'
+            }), 400
+        
+        # Read file content
+        file_content = file.read()
+        
+        # Parse the Excel file
+        result = excel_service.parse_excel_file(file_content)
+        
+        if result['success']:
+            return jsonify({
+                'status': 'success',
+                'message': 'Excel file parsed successfully',
+                'data': {
+                    'sheet_names': result['sheet_names'],
+                    'headers': result['headers'],
+                    'preview_data': result['preview_data'],
+                    'total_rows': result['total_rows']
+                }
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': result['error']
+            }), 400
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Error parsing Excel file: {str(e)}'
+        }), 500
+
+@api_bp.route('/excel/validate-lead-ids', methods=['POST'])
+def validate_excel_lead_ids():
+    """Validate Lead IDs from Excel file and return preview of valid leads"""
+    try:
+        # Check if file is present
+        if 'file' not in request.files:
+            return jsonify({
+                'status': 'error',
+                'message': 'No file uploaded'
+            }), 400
+        
+        file = request.files['file']
+        
+        if file.filename == '':
+            return jsonify({
+                'status': 'error',
+                'message': 'No file selected'
+            }), 400
+        
+        # Get form data
+        sheet_name = request.form.get('sheet_name')
+        lead_id_column = request.form.get('lead_id_column')
+        
+        if not sheet_name:
+            return jsonify({
+                'status': 'error',
+                'message': 'Sheet name is required'
+            }), 400
+        
+        if not lead_id_column:
+            return jsonify({
+                'status': 'error',
+                'message': 'Lead ID column is required'
+            }), 400
+        
+        # Read file content
+        file_content = file.read()
+        
+        # Extract Lead IDs from Excel
+        extraction_result = excel_service.extract_lead_ids_from_excel(
+            file_content, sheet_name, lead_id_column
+        )
+        
+        if not extraction_result['success']:
+            return jsonify({
+                'status': 'error',
+                'message': extraction_result['error']
+            }), 400
+        
+        lead_ids = extraction_result['lead_ids']
+        
+        if not lead_ids:
+            return jsonify({
+                'status': 'error',
+                'message': f'No valid Lead IDs found in column "{lead_id_column}"'
+            }), 400
+        
+        # Validate Lead IDs with Salesforce (strict validation - any invalid ID blocks analysis)
+        validation_result, validation_message = sf_service.validate_lead_ids(lead_ids)
+        
+        if validation_result is None:
+            return jsonify({
+                'status': 'error',
+                'message': validation_message
+            }), 500
+        
+        # Check if any Lead IDs are invalid (strict validation)
+        invalid_lead_ids = validation_result.get('invalid_lead_ids', [])
+        if invalid_lead_ids:
+            return jsonify({
+                'status': 'error',
+                'message': f'Invalid Lead IDs found: {", ".join(invalid_lead_ids)}. All Lead IDs must be valid to proceed with analysis.',
+                'invalid_lead_ids': invalid_lead_ids,
+                'valid_lead_ids': validation_result.get('valid_lead_ids', [])
+            }), 400
+        
+        # All Lead IDs are valid
+        valid_lead_ids = validation_result['valid_lead_ids']
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'All {len(valid_lead_ids)} Lead IDs are valid',
+            'data': {
+                'total_lead_ids': len(lead_ids),
+                'valid_lead_ids': valid_lead_ids,
+                'invalid_lead_ids': [],
+                'original_data_rows': extraction_result['total_rows']
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Error validating Lead IDs: {str(e)}'
+        }), 500
+
+@api_bp.route('/excel/analyze', methods=['POST'])
+def analyze_excel_leads():
+    """Analyze leads from Excel file upload"""
+    try:
+        # Check if file is present
+        if 'file' not in request.files:
+            return jsonify({
+                'status': 'error',
+                'message': 'No file uploaded'
+            }), 400
+        
+        file = request.files['file']
+        
+        if file.filename == '':
+            return jsonify({
+                'status': 'error',
+                'message': 'No file selected'
+            }), 400
+        
+        # Get form data
+        sheet_name = request.form.get('sheet_name')
+        lead_id_column = request.form.get('lead_id_column')
+        max_analyze = int(request.form.get('max_analyze', 10000))  # High default to analyze all
+        include_ai_assessment = True  # Always include AI assessment
+        
+        # Validate parameters
+        if not sheet_name:
+            return jsonify({
+                'status': 'error',
+                'message': 'Sheet name is required'
+            }), 400
+        
+        if not lead_id_column:
+            return jsonify({
+                'status': 'error',
+                'message': 'Lead ID column is required'
+            }), 400
+        
+        # Read file content
+        file_content = file.read()
+        
+        # Extract Lead IDs from Excel
+        extraction_result = excel_service.extract_lead_ids_from_excel(
+            file_content, sheet_name, lead_id_column
+        )
+        
+        if not extraction_result['success']:
+            return jsonify({
+                'status': 'error',
+                'message': extraction_result['error']
+            }), 400
+        
+        # Use all Lead IDs (remove artificial limit since we want to analyze everything)
+        lead_ids = extraction_result['lead_ids']
+        
+        if not lead_ids:
+            return jsonify({
+                'status': 'error',
+                'message': f'No valid Lead IDs found in column "{lead_id_column}"'
+            }), 400
+        
+        # Validate Lead IDs with Salesforce (strict validation)
+        validation_result, validation_message = sf_service.validate_lead_ids(lead_ids)
+        
+        if validation_result is None:
+            return jsonify({
+                'status': 'error',
+                'message': validation_message
+            }), 500
+        
+        # Check if any Lead IDs are invalid (strict validation)
+        invalid_lead_ids = validation_result.get('invalid_lead_ids', [])
+        if invalid_lead_ids:
+            return jsonify({
+                'status': 'error',
+                'message': f'Invalid Lead IDs found: {", ".join(invalid_lead_ids)}. Analysis cannot proceed.',
+                'invalid_lead_ids': invalid_lead_ids
+            }), 400
+        
+        # All Lead IDs are valid, proceed with analysis
+        valid_lead_ids = validation_result['valid_lead_ids']
+        
+        # Analyze the leads using the existing service method
+        # This only works with Salesforce data, not Excel data
+        result, message = sf_service.analyze_leads_from_ids(
+            valid_lead_ids, include_ai_assessment
+        )
+        
+        if result is None:
+            return jsonify({
+                'status': 'error',
+                'message': message
+            }), 500
+        
+        # Store original Excel data separately for export (don't include in main response)
+        # This avoids JSON serialization issues with NaN values
+        result['excel_metadata'] = {
+            'lead_id_column': lead_id_column,
+            'sheet_name': sheet_name,
+            'filename': file.filename,
+            'has_original_data': True  # Flag that original data is available for export
+        }
+        
+        return jsonify({
+            'status': 'success',
+            'message': message,
+            'data': result
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Error analyzing Excel leads: {str(e)}'
+        }), 500
+
+@api_bp.route('/excel/export-analysis', methods=['POST'])
+def export_excel_analysis():
+    """Export Excel analysis results combining original data with AI analysis"""
+    try:
+        # Get JSON data from request
+        if not request.is_json:
+            return jsonify({
+                'status': 'error',
+                'message': 'Request must be JSON'
+            }), 400
+        
+        data = request.get_json()
+        
+        # Validate required fields
+        required_fields = ['analysis_results', 'original_data', 'lead_id_column']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({
+                    'status': 'error',
+                    'message': f'Missing required field: {field}'
+                }), 400
+        
+        analysis_results = data['analysis_results']
+        original_data = data['original_data']
+        lead_id_column = data['lead_id_column']
+        filename_prefix = data.get('filename_prefix', 'excel_analysis')
+        
+        # Validate data types
+        if not isinstance(analysis_results, list):
+            return jsonify({
+                'status': 'error',
+                'message': 'analysis_results must be a list'
+            }), 400
+        
+        if not isinstance(original_data, list):
+            return jsonify({
+                'status': 'error',
+                'message': 'original_data must be a list'
+            }), 400
+        
+        # Generate Excel file with combined data
+        result = excel_service.create_excel_with_analysis(
+            original_data, analysis_results, lead_id_column, filename_prefix
+        )
+        
+        if not result['success']:
+            return jsonify({
+                'status': 'error',
+                'message': result['error']
+            }), 500
+        
+        return send_file(
+            result['file_buffer'],
+            as_attachment=True,
+            download_name=result['filename'],
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Error exporting Excel analysis: {str(e)}'
+        }), 500
+
+@api_bp.route('/excel/export-analysis-with-file', methods=['POST'])
+def export_excel_analysis_with_file():
+    """Export Excel analysis results by re-extracting original data from file"""
+    try:
+        # Check if file is present
+        if 'file' not in request.files:
+            return jsonify({
+                'status': 'error',
+                'message': 'No file uploaded'
+            }), 400
+        
+        file = request.files['file']
+        
+        if file.filename == '':
+            return jsonify({
+                'status': 'error',
+                'message': 'No file selected'
+            }), 400
+        
+        # Get form data
+        sheet_name = request.form.get('sheet_name')
+        lead_id_column = request.form.get('lead_id_column')
+        analysis_results_json = request.form.get('analysis_results')
+        
+        if not sheet_name or not lead_id_column or not analysis_results_json:
+            return jsonify({
+                'status': 'error',
+                'message': 'Missing required parameters'
+            }), 400
+        
+        # Parse analysis results
+        import json
+        analysis_results = json.loads(analysis_results_json)
+        
+        # Read file content and extract original data fresh
+        file_content = file.read()
+        extraction_result = excel_service.extract_lead_ids_from_excel(
+            file_content, sheet_name, lead_id_column
+        )
+        
+        if not extraction_result['success']:
+            return jsonify({
+                'status': 'error',
+                'message': extraction_result['error']
+            }), 400
+        
+        # Generate Excel file with combined data
+        result = excel_service.create_excel_with_analysis(
+            extraction_result['original_data'], 
+            analysis_results, 
+            lead_id_column, 
+            'excel_analysis'
+        )
+        
+        if not result['success']:
+            return jsonify({
+                'status': 'error',
+                'message': result['error']
+            }), 500
+        
+        return send_file(
+            result['file_buffer'],
+            as_attachment=True,
+            download_name=result['filename'],
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Error exporting Excel analysis with file: {str(e)}'
+        }), 500

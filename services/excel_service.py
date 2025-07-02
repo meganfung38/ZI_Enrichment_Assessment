@@ -1,9 +1,10 @@
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 from datetime import datetime
 import json
 import io
+import pandas as pd
 
 class ExcelService:
     """Service for exporting lead analysis data to Excel format"""
@@ -233,4 +234,232 @@ class ExcelService:
             summary_data=None,
             query_info=None,
             filename_prefix=filename_prefix
-        ) 
+        )
+    
+    def parse_excel_file(self, file_content):
+        """Parse uploaded Excel file and return sheet names and preview data"""
+        try:
+            # Load workbook from file content
+            wb = load_workbook(io.BytesIO(file_content), read_only=True)
+            sheet_names = wb.sheetnames
+            
+            # Get preview data from first sheet
+            first_sheet = wb[sheet_names[0]]
+            
+            # Read first 10 rows for preview
+            preview_data = []
+            headers = []
+            
+            for row_idx, row in enumerate(first_sheet.iter_rows(values_only=True)):
+                if row_idx == 0:
+                    # First row as headers
+                    headers = [cell if cell is not None else f"Column_{i+1}" for i, cell in enumerate(row)]
+                elif row_idx < 11:  # First 10 data rows
+                    row_data = [cell if cell is not None else "" for cell in row]
+                    # Pad row to match header length
+                    while len(row_data) < len(headers):
+                        row_data.append("")
+                    preview_data.append(row_data[:len(headers)])  # Trim to header length
+                else:
+                    break
+            
+            wb.close()
+            
+            # Calculate total rows safely (max_row can be None for empty sheets)
+            total_rows = (first_sheet.max_row - 1) if first_sheet.max_row else 0
+            
+            return {
+                'success': True,
+                'sheet_names': sheet_names,
+                'headers': headers,
+                'preview_data': preview_data,
+                'total_rows': max(total_rows, len(preview_data))  # Use actual data count if max_row is unreliable
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'error': f"Error parsing Excel file: {str(e)}"
+            }
+    
+    def extract_lead_ids_from_excel(self, file_content, sheet_name, lead_id_column):
+        """Extract Lead IDs from specified column in Excel file"""
+        try:
+            # Use pandas for easier data extraction
+            df = pd.read_excel(io.BytesIO(file_content), sheet_name=sheet_name)
+            
+            if lead_id_column not in df.columns:
+                return {
+                    'success': False,
+                    'error': f"Column '{lead_id_column}' not found in sheet '{sheet_name}'"
+                }
+            
+            # Extract Lead IDs and remove null/empty values
+            lead_ids = df[lead_id_column].dropna().astype(str).tolist()
+            # Remove empty strings and whitespace-only strings
+            lead_ids = [lid.strip() for lid in lead_ids if lid.strip()]
+            
+            # Get original data for later merging - handle NaN values
+            # Replace NaN with empty string to avoid JSON serialization issues
+            df_clean = df.where(pd.notnull(df), '')  # Replace NaN with empty string
+            original_data = df_clean.to_dict('records')
+            
+            return {
+                'success': True,
+                'lead_ids': lead_ids,
+                'original_data': original_data,
+                'total_rows': len(df)
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'error': f"Error extracting Lead IDs: {str(e)}"
+            }
+    
+    def create_excel_with_analysis(self, original_data, analysis_results, lead_id_column, filename_prefix="excel_analysis"):
+        """Create Excel file combining original data with AI analysis results"""
+        try:
+            # Convert original data to DataFrame and handle NaN values
+            df_original = pd.DataFrame(original_data)
+            # Ensure no NaN values that could cause JSON serialization issues
+            df_original = df_original.where(pd.notnull(df_original), '')
+            
+            # Create analysis DataFrame
+            analysis_dict = {result['Id']: result for result in analysis_results}
+            
+            # Add analysis columns
+            analysis_columns = {
+                'AI_Confidence_Score': [],
+                'AI_Explanation': [],
+                'AI_Corrections': [],
+                'AI_Inferences': [],
+                'AI_Not_in_TAM': [],
+                'AI_Suspicious_Enrichment': [],
+                'AI_Status': []
+            }
+            
+            for _, row in df_original.iterrows():
+                lead_id = str(row[lead_id_column]).strip()
+                analysis = analysis_dict.get(lead_id, {})
+                
+                # Extract analysis data
+                confidence_assessment = analysis.get('confidence_assessment', {})
+                
+                analysis_columns['AI_Confidence_Score'].append(
+                    confidence_assessment.get('confidence_score', '') if confidence_assessment else ''
+                )
+                
+                explanation_bullets = confidence_assessment.get('explanation_bullets', []) if confidence_assessment else []
+                analysis_columns['AI_Explanation'].append(
+                    '\n'.join(explanation_bullets) if explanation_bullets else ''
+                )
+                
+                corrections = confidence_assessment.get('corrections', {}) if confidence_assessment else {}
+                analysis_columns['AI_Corrections'].append(
+                    json.dumps(corrections, indent=2) if corrections else ''
+                )
+                
+                inferences = confidence_assessment.get('inferences', {}) if confidence_assessment else {}
+                analysis_columns['AI_Inferences'].append(
+                    json.dumps(inferences, indent=2) if inferences else ''
+                )
+                
+                analysis_columns['AI_Not_in_TAM'].append(
+                    'Yes' if analysis.get('not_in_TAM') else 'No'
+                )
+                
+                analysis_columns['AI_Suspicious_Enrichment'].append(
+                    'Yes' if analysis.get('suspicious_enrichment') else 'No'
+                )
+                
+                analysis_columns['AI_Status'].append(
+                    analysis.get('ai_assessment_status', 'Not Analyzed')
+                )
+            
+            # Add analysis columns to original DataFrame
+            for col_name, col_data in analysis_columns.items():
+                df_original[col_name] = col_data
+            
+            # Create Excel file with formatting
+            wb = Workbook()
+            ws = wb.active
+            ws.title = "Analysis Results"
+            
+            # Add title
+            ws.merge_cells(f'A1:{get_column_letter(len(df_original.columns))}1')
+            ws['A1'] = "Excel Upload Analysis Results"
+            ws['A1'].font = Font(bold=True, size=16)
+            ws['A1'].alignment = self.center_alignment
+            
+            # Add timestamp
+            ws.merge_cells(f'A2:{get_column_letter(len(df_original.columns))}2')
+            ws['A2'] = f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            ws['A2'].alignment = self.center_alignment
+            
+            # Add headers (row 4)
+            header_row = 4
+            for col_idx, header in enumerate(df_original.columns, 1):
+                cell = ws.cell(row=header_row, column=col_idx, value=header)
+                cell.font = self.header_font
+                cell.fill = self.header_fill
+                cell.alignment = self.center_alignment
+                cell.border = self.border
+            
+            # Add data rows
+            for row_idx, (_, row) in enumerate(df_original.iterrows(), header_row + 1):
+                for col_idx, value in enumerate(row, 1):
+                    cell = ws.cell(row=row_idx, column=col_idx, value=value)
+                    cell.border = self.border
+                    
+                    # Special formatting for AI columns
+                    header = df_original.columns[col_idx - 1]
+                    if header in ['AI_Not_in_TAM', 'AI_Suspicious_Enrichment']:
+                        cell.alignment = self.center_alignment
+                        if value == 'Yes':
+                            cell.fill = PatternFill(start_color="FFE6E6", end_color="FFE6E6", fill_type="solid")
+                    elif header == 'AI_Confidence_Score':
+                        cell.alignment = self.center_alignment
+                        if isinstance(value, (int, float)) and value > 0:
+                            if value >= 80:
+                                cell.fill = PatternFill(start_color="E6FFE6", end_color="E6FFE6", fill_type="solid")
+                            elif value >= 60:
+                                cell.fill = PatternFill(start_color="FFFACD", end_color="FFFACD", fill_type="solid")
+                            else:
+                                cell.fill = PatternFill(start_color="FFE6E6", end_color="FFE6E6", fill_type="solid")
+                    elif header in ['AI_Explanation', 'AI_Corrections', 'AI_Inferences']:
+                        cell.alignment = self.wrap_alignment
+            
+            # Auto-adjust column widths
+            for col_idx, header in enumerate(df_original.columns, 1):
+                if header.startswith('AI_'):
+                    if header in ['AI_Explanation', 'AI_Corrections', 'AI_Inferences']:
+                        ws.column_dimensions[get_column_letter(col_idx)].width = 40
+                    elif header == 'AI_Confidence_Score':
+                        ws.column_dimensions[get_column_letter(col_idx)].width = 15
+                    else:
+                        ws.column_dimensions[get_column_letter(col_idx)].width = 18
+                else:
+                    # Auto-size original columns
+                    ws.column_dimensions[get_column_letter(col_idx)].width = 20
+            
+            # Create file buffer
+            file_buffer = io.BytesIO()
+            wb.save(file_buffer)
+            file_buffer.seek(0)
+            
+            # Generate filename
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f"{filename_prefix}_{timestamp}.xlsx"
+            
+            return {
+                'success': True,
+                'file_buffer': file_buffer,
+                'filename': filename
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'error': f"Error creating Excel with analysis: {str(e)}"
+            } 

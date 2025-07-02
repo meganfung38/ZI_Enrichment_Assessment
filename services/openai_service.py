@@ -221,7 +221,14 @@ def validate_and_clean_assessment(assessment, lead_data):
     for field, value in assessment.get('inferences', {}).items():
         should_keep = True
         
-        if field in ['Website', 'ZI_Website__c']:
+        # First check if this inference is identical to a correction (cross-redundancy)
+        if field in cleaned_corrections:
+            correction_value = cleaned_corrections[field]
+            if str(value).strip() == str(correction_value).strip():
+                should_keep = False
+                print(f"🧹 Removed redundant inference: {field} '{value}' (identical to correction)")
+        
+        if should_keep and field in ['Website', 'ZI_Website__c']:
             # Check if any existing website field has the same domain or exact match
             for existing_field, existing_value in existing_websites.items():
                 if existing_value:
@@ -235,6 +242,14 @@ def validate_and_clean_assessment(assessment, lead_data):
                         should_keep = False
                         print(f"🧹 Removed redundant inference: {field} '{value}' (exact match with {existing_field}: '{existing_value}')")
                         break
+        
+        # For non-website fields, also check for exact string matches with corrections
+        if should_keep and field not in ['Website', 'ZI_Website__c']:
+            if field in cleaned_corrections:
+                correction_value = cleaned_corrections[field]
+                if str(value).strip() == str(correction_value).strip():
+                    should_keep = False
+                    print(f"🧹 Removed redundant inference: {field} '{value}' (identical to correction)")
         
         if should_keep:
             cleaned_inferences[field] = value

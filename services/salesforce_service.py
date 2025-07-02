@@ -559,4 +559,123 @@ class SalesforceService:
         except Exception as e:
             # Return empty results for this batch on error
             print(f"Error analyzing batch: {str(e)}")
-            return [] 
+            return []
+    
+    def validate_lead_ids(self, lead_ids):
+        """Validate that all provided Lead IDs exist in Salesforce"""
+        try:
+            if not self.ensure_connection():
+                return None, "Failed to establish Salesforce connection"
+            
+            if not lead_ids:
+                return {'valid_lead_ids': [], 'invalid_lead_ids': []}, "No Lead IDs provided"
+            
+            # Query Salesforce to check which Lead IDs exist
+            ids_string = "', '".join(lead_ids)
+            validation_query = f"SELECT Id FROM Lead WHERE Id IN ('{ids_string}')"
+            
+            assert self.sf is not None  # Type hint for linter
+            result = self.sf.query(validation_query)
+            
+            # Extract valid Lead IDs from query result
+            valid_lead_ids = [record['Id'] for record in result['records']]
+            
+            # Find invalid Lead IDs by comparing with original list
+            invalid_lead_ids = [lid for lid in lead_ids if lid not in valid_lead_ids]
+            
+            return {
+                'valid_lead_ids': valid_lead_ids,
+                'invalid_lead_ids': invalid_lead_ids
+            }, f"Validated {len(valid_lead_ids)} valid and {len(invalid_lead_ids)} invalid Lead IDs"
+            
+        except Exception as e:
+            return None, f"Error validating Lead IDs: {str(e)}"
+    
+    def analyze_leads_from_ids(self, lead_ids, include_ai_assessment=True):
+        """Analyze leads from a list of Lead IDs with quality assessment and AI confidence scoring"""
+        import time
+        start_time = time.time()
+        
+        try:
+            if not self.ensure_connection():
+                return None, "Failed to establish Salesforce connection"
+            
+            if not lead_ids:
+                return {
+                    'summary': {
+                        'leads_analyzed': 0,
+                        'leads_with_issues': 0,
+                        'not_in_tam_count': 0,
+                        'suspicious_enrichment_count': 0,
+                        'avg_confidence_score': 0
+                    },
+                    'leads': []
+                }, "No Lead IDs provided"
+            
+            actual_analyze_count = len(lead_ids)
+            
+            # Process leads with AI confidence assessment
+            analyzed_leads = []
+            leads_with_issues = 0
+            not_in_tam_count = 0
+            suspicious_enrichment_count = 0
+            total_confidence_score = 0
+            successful_ai_assessments = 0
+            
+            # Import here to avoid circular imports
+            from services.openai_service import generate_lead_confidence_assessment
+            
+            # Get all lead data in one batch query (much faster!)
+            batch_leads = self._analyze_lead_batch(lead_ids, include_details=True)
+            
+            # Process each lead for AI assessment
+            for lead_data in batch_leads:
+                try:
+                    # Count basic quality issues
+                    if lead_data.get('not_in_TAM') or lead_data.get('suspicious_enrichment'):
+                        leads_with_issues += 1
+                    if lead_data.get('not_in_TAM'):
+                        not_in_tam_count += 1
+                    if lead_data.get('suspicious_enrichment'):
+                        suspicious_enrichment_count += 1
+                    
+                    # Generate AI confidence assessment if requested
+                    if include_ai_assessment:
+                        assessment, ai_message = generate_lead_confidence_assessment(lead_data)
+                        if assessment and assessment.get('confidence_score') is not None:
+                            lead_data['confidence_assessment'] = assessment
+                            lead_data['ai_assessment_status'] = 'success'
+                            total_confidence_score += assessment.get('confidence_score', 0)
+                            successful_ai_assessments += 1
+                        else:
+                            lead_data['confidence_assessment'] = None
+                            lead_data['ai_assessment_status'] = f'failed: {ai_message}'
+                    
+                    # Always include full lead data
+                    analyzed_leads.append(lead_data)
+                        
+                except Exception as e:
+                    print(f"Error processing lead {lead_data.get('Id', 'unknown')}: {str(e)}")
+                    continue
+            
+            execution_time = time.time() - start_time
+            avg_confidence_score = (total_confidence_score / successful_ai_assessments) if successful_ai_assessments > 0 else 0
+            
+            result = {
+                'summary': {
+                    'leads_analyzed': actual_analyze_count,
+                    'leads_with_issues': leads_with_issues,
+                    'not_in_tam_count': not_in_tam_count,
+                    'suspicious_enrichment_count': suspicious_enrichment_count,
+                    'issue_percentage': round((leads_with_issues / actual_analyze_count) * 100, 2) if actual_analyze_count > 0 else 0,
+                    'avg_confidence_score': round(avg_confidence_score, 1),
+                    'ai_assessments_successful': successful_ai_assessments,
+                    'ai_assessments_failed': actual_analyze_count - successful_ai_assessments
+                },
+                'leads': analyzed_leads
+            }
+            
+            return result, f"Successfully analyzed {actual_analyze_count} leads with AI confidence scoring"
+            
+        except Exception as e:
+            return None, f"Error analyzing leads from IDs: {str(e)}" 
