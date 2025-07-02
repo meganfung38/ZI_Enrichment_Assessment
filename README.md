@@ -1,11 +1,11 @@
 # ZoomInfo Enrichment Quality Assessment API
 
-A Flask API for assessing the quality and reliability of ZoomInfo-enriched lead data with AI-powered confidence scoring, explanations, and Excel export capabilities.
+A Flask API for assessing the quality and reliability of ZoomInfo-enriched lead data with AI-powered confidence scoring and Excel export capabilities.
 
 ## Quick Start
 
 ```bash
-# Install dependencies (updated to latest versions)
+# Install dependencies
 pip install -r config/requirements.txt
 
 # Set up environment
@@ -16,218 +16,159 @@ cp config/env.example .env
 python app.py
 ```
 
-## Latest Updates (January 2025)
-
-✅ **Enhanced AI Assessment & Validation**
-- **Intelligent URL Handling**: Prevents redundant corrections/inferences for URL formatting differences
-- **Advanced Cross-Validation**: Enhanced rules prevent AI from making meaningless formatting corrections
-- **Mandatory Caution Requirements**: Confidence scores < 100 must include specific caution/issue explanations
-- **Smart Domain Extraction**: AI extracts core domains before making any website-related inferences
-
-✅ **Enhanced Data Collection & Validation**
-- **Expanded Lead Data**: Now collects 10 core fields including segment info, company size ranges, and dual website sources
-- **Advanced Cross-Validation**: Compare ZoomInfo data against internal estimates and segment classifications
-- **Website Consistency Checks**: Validate alignment between lead-provided and ZoomInfo-enriched website data
-- **Company Size Agreement**: Cross-validate ZoomInfo employee counts with internal size range estimates
-
-✅ **Flexible SOQL Query System**
-- **Complex Query Support**: JOINs, UNIONs, subqueries allowed if they return Lead IDs
-- **Result-Focused Validation**: Security-first approach while enabling sophisticated lead filtering
-- **Enterprise-Grade Flexibility**: Support for multi-object queries and complex business logic
-- **Smart Query Building**: Handles empty queries, LIMIT conflicts, and WHERE clauses intelligently
-
-✅ **Professional Excel Export System**
-- **Comprehensive Reports**: All lead fields, confidence assessments, explanations, corrections, and inferences
-- **Visual Formatting**: Color-coded confidence scores, bordered tables, proper column sizing
-- **Summary Statistics**: Analysis overview including total leads, issue percentages, average confidence
-- **Timestamped Files**: Automatic naming with date/time for easy organization
-- **Sample Export**: See [`docs/sample_result.xlsx`](docs/sample_result.xlsx) for bulk analysis report (leads with employee count > 1000)
-
-✅ **AI-Powered ZoomInfo Enrichment Assessment**
-- **Enhanced Validation**: 12+ data points for comprehensive enrichment quality assessment
-- **Smart Explanations**: Clear bullet-point rationale with emoji indicators (✅ ⚠️ ❌)
-- **Intelligent Corrections**: High-confidence fixes for conflicting ZoomInfo data (no URL formatting changes)
-- **Contextual Inferences**: Lower-confidence guesses for missing enrichment data (prevents redundant URL variations)
-- **Segment-Aware Analysis**: Use sales segment and channel context for better assessment
-
-✅ **Performance & User Experience**
-- **10x Faster Execution**: Optimized batch processing and query optimization
-- **Two-Step Workflow**: Preview queries before running full analysis for better control
-- **Smart UI Controls**: Export buttons only enabled after successful analysis completion
-- **Web Interface**: Interactive testing and analysis with real-time feedback
-
-✅ **Dependencies & Architecture**
-- **Flask 3.1.1**: Latest stable with improved performance and security
-- **simple-salesforce 1.12.6**: Enhanced JWT support, Bulk2.0 features, OAuth2 endpoints
-- **OpenAI 1.90.0+**: Latest API features and improved response handling
-- **openpyxl 3.1.5**: Professional Excel file generation and formatting
-- **Modular Design**: Clean separation of concerns with service layer architecture
-- **Organized UI Structure**: Templates, CSS, and JavaScript properly separated following Flask best practices
+Access the web interface at `http://localhost:5000/ui`
 
 ## Key Features
 
-📊 **Comprehensive Data Collection**
-- **10 Core Lead Fields**: Email, channel, segment, size ranges, dual website sources, ZoomInfo enrichment data
-- **Cross-Validation Ready**: Compare ZoomInfo data against internal estimates and classifications
-- **Business Context**: Sales segment and channel information for enhanced assessment
-- **Dual Website Sources**: Compare lead-provided vs ZoomInfo-enriched website data
+🧠 **AI-Powered Assessment**
+- OpenAI-driven confidence scoring (0-100) for ZoomInfo enrichment quality
+- Intelligent corrections and inferences with redundancy validation
+- Context-aware analysis using sales segment and channel data
 
-🧠 **AI-Powered ZoomInfo Assessment**
-- **Enhanced Validation**: 10+ data points for comprehensive enrichment quality scoring (0-100)
-- **Smart Explanations**: Clear bullet-point rationale with emoji indicators (✅ ⚠️ ❌)
-- **Intelligent Corrections**: High-confidence fixes for conflicting ZoomInfo data (≥80% confidence)
-- **Contextual Inferences**: Lower-confidence guesses for missing enrichment data (≥40% confidence)
-- **Segment-Aware Analysis**: Use sales context for more accurate assessments
-- **URL Intelligence**: Prevents redundant corrections like "example.com" → "https://example.com"
+🔍 **Comprehensive Data Analysis**
+- 10+ lead fields including dual website sources and employee counts
+- Automated quality flags (`not_in_TAM`, `suspicious_enrichment`)
+- Cross-validation between ZoomInfo data and internal estimates
 
-🔍 **Advanced Quality Detection**
-- **Automated Quality Flags**: `not_in_TAM` and `suspicious_enrichment` detection
-- **Website Consistency Checks**: Validate alignment between multiple website sources
-- **Company Size Agreement**: Cross-validate employee counts with internal size estimates
-- **Email Domain Analysis**: Corporate vs. free email validation with business logic
-- **Cross-Field Validation**: Advanced consistency checks across all enrichment fields
+📊 **Flexible Query System**
+- Support for complex SOQL queries (JOINs, UNIONs, subqueries)
+- Two-step workflow: preview queries before full analysis
+- Batch processing with configurable limits
 
-📈 **Flexible SOQL Query System**
-- **Enterprise-Grade Queries**: JOINs, UNIONs, subqueries allowed if they return Lead IDs
-- **Result-Focused Security**: Smart validation ensures only Lead IDs are returned
-- **Complex Business Logic**: Support for sophisticated lead filtering and segmentation
-- **Query Intelligence**: Handles empty queries, LIMIT conflicts, and WHERE clauses automatically
+📈 **Professional Excel Export**
+- Color-coded confidence scores and professional formatting
+- Summary statistics and individual lead breakdowns
+- Sample exports available in [`docs/`](docs/) folder
 
-📊 **Professional Excel Export**
-- **Comprehensive Reports**: All 10 core fields plus 7 assessment outputs (confidence scores, explanations, corrections, inferences)
-- **Visual Excellence**: Color-coded confidence scores, bordered tables, professional formatting
-- **Summary Analytics**: Total leads, issue percentages, average confidence, trend analysis
-- **Organized Output**: Timestamped files with clear structure for business reporting
-- **Sample Available**: View [`docs/sample_excel.xlsx`](docs/sample_excel.xlsx) for example export format
+⚡ **Multiple Analysis Options**
+- Single lead confidence assessment
+- Bulk SOQL query analysis
+- Excel file upload for Lead ID batch processing
 
-⚡ **Performance & Experience**
-- **10x Faster Execution**: Optimized batch processing and intelligent query optimization
-- **Two-Step Workflow**: Preview queries before analysis for better control and validation
-- **Smart UI Controls**: Context-aware interface with proper state management
-- **Interactive Web Interface**: Real-time feedback and comprehensive testing capabilities
+## Tech Stack
 
-🚀 **Enterprise Architecture**
-- **Flask 3.1.1**: Latest stable framework with enhanced security and performance
-- **Modular Design**: Clean service layer separation with extensible architecture
-- **MVC Structure**: Proper template/static asset organization following Flask best practices
-- **OpenAI Integration**: Latest API features (v1.90.0+) for advanced AI-powered analysis
-- **Professional Reporting**: openpyxl 3.1.5 integration for business-grade Excel output
-- **Salesforce Optimized**: Enhanced simple-salesforce 1.12.6 with improved query capabilities
-
-## Quick API Examples
-
-```bash
-# Test connections
-curl http://localhost:5000/test-openai-connection
-curl http://localhost:5000/test-salesforce-connection
-
-# Get basic lead data with quality flags
-curl http://localhost:5000/lead/00Q5e00000ABC123
-
-# Get AI-powered ZoomInfo enrichment assessment
-curl http://localhost:5000/lead/00Q5e00000ABC123/confidence
-
-# Export single lead assessment to Excel
-curl http://localhost:5000/lead/00Q5e00000ABC123/confidence/export -o lead_assessment.xlsx
-
-# Analyze multiple leads from SOQL query (via web UI at /ui)
-# Supports complex queries with JOINs and UNIONs that return Lead IDs
-# POST /leads/analyze-query - Bulk ZoomInfo enrichment analysis
-# POST /leads/analyze-query/export - Export bulk analysis to Excel
-```
-
-## Sample Excel Exports
-
-The API generates professional Excel reports with comprehensive ZoomInfo enrichment analysis:
-
-**Single Lead Analysis**: **View the sample format at [`docs/sample_excel.xlsx`](docs/sample_excel.xlsx)** which includes:
-- **17 Total Columns**: 10 core lead fields + 7 AI assessment outputs
-- **Color-Coded Confidence**: Traffic light system (Red: 0-59, Yellow: 60-79, Green: 80-100)
-- **Professional Formatting**: Bordered tables, proper column sizing, business-ready appearance
-- **Comprehensive Data**: All lead data, AI explanations, corrections, and inferences in one report
-
-**Bulk Analysis Report**: **View the sample at [`docs/sample_result.xlsx`](docs/sample_result.xlsx)** which shows:
-- **Bulk Lead Analysis**: Multiple leads analyzed in a single report (example: leads with employee count > 1000)
-- **Summary Statistics**: Total leads analyzed, issue percentages, average confidence scores
-- **Batch Processing Results**: Demonstrates the system's ability to handle multiple leads efficiently
-- **Executive Reporting**: Business-ready format for stakeholder presentations
-
-## Documentation
-
-📚 **Full documentation is available in the [`docs/`](docs/) folder:**
-
-- **[API Documentation](docs/README.md)** - Complete setup guide, API reference, and examples
-- **[Project Requirements](docs/project_breakdown.md)** - Detailed project overview and specifications
-- **[Lead Data Interpretation](docs/lead_data_interpretation.md)** - AI scoring methodology and field definitions
-- **[Sample Excel Export](docs/sample_excel.xlsx)** - Example of professional Excel report output
+- **Backend**: Flask 3.1.1, Python 3.8+
+- **Salesforce**: simple-salesforce 1.12.6
+- **AI**: OpenAI API 1.90.0+
+- **Excel**: openpyxl 3.1.5
+- **Frontend**: Vanilla JavaScript, RingCentral-themed CSS
 
 ## Project Structure
 
 ```
 ZI_Enrichment_Assessment/
-├── app.py                           # 🚀 Main Flask application (clean & organized)
-├── templates/                       # 🎨 HTML Templates
-│   └── ui.html                     # Interactive web UI template
-├── static/                         # 📁 Static Assets
-│   ├── css/
-│   │   └── ringcentral-theme.css   # RingCentral brand styling
-│   └── js/
-│       └── ui-handlers.js          # JavaScript event handlers & functionality
-├── docs/                           # 📚 Comprehensive Documentation
-│   ├── README.md                   # Complete API guide & examples
-│   ├── project_breakdown.md        # Project requirements & specifications
-│   ├── lead_data_interpretation.md # AI scoring methodology & field definitions
-│   └── sample_result.xlsx          # Bulk analysis report example
-├── config/                         # ⚙️  Configuration Management
-│   ├── config.py                   # Environment-based configuration
-│   ├── requirements.txt            # Python dependencies (Flask 3.1.1, OpenAI 1.90.0+)
-│   └── env.example                 # Environment template with all required vars
-├── services/                       # 🔧 Core Business Logic Services
-│   ├── salesforce_service.py       # 📊 Enhanced Salesforce integration (12+ fields)
-│   ├── openai_service.py           # 🧠 AI-powered confidence assessment
-│   └── excel_service.py            # 📈 Professional Excel export & formatting
-└── routes/                         # 🛣️  API Route Definitions
-    └── api_routes.py               # All endpoints with comprehensive validation
+├── app.py                           # Main Flask application
+├── templates/ui.html                # Web interface template
+├── static/                          # CSS and JavaScript assets
+│   ├── css/ringcentral-theme.css
+│   └── js/ui-handlers.js
+├── config/                          # Configuration and dependencies
+│   ├── config.py
+│   ├── requirements.txt
+│   └── env.example
+├── services/                        # Core business logic
+│   ├── salesforce_service.py        # Salesforce API integration
+│   ├── openai_service.py           # AI confidence assessment
+│   └── excel_service.py            # Excel export functionality
+├── routes/                          # API endpoint definitions
+│   └── api_routes.py
+└── docs/                           # Documentation and samples
+    ├── README.md                   # Detailed API documentation
+    ├── project_breakdown.md
+    ├── lead_data_interpretation.md
+    └── sample_result.xlsx
 ```
 
-### **Key Components:**
+## Core Services
 
-**🚀 Flask Application (`app.py`)**
-- Clean, organized application factory pattern with blueprints
-- Template-based UI rendering (MVC architecture)
-- Environment-based configuration management
-- Unicode-safe JSON responses
+### SalesforceService
+- Lead data retrieval with 10+ fields
+- Complex SOQL query support
+- Quality flag computation
+- Batch processing optimization
 
-**🎨 UI Components (Separated & Organized)**
-- **`templates/ui.html`**: Clean HTML template with RingCentral branding
-- **`static/css/ringcentral-theme.css`**: Professional RingCentral brand styling
-- **`static/js/ui-handlers.js`**: Modular JavaScript event handlers and functionality
-- **Maintainable Architecture**: Clear separation between frontend and backend code
+### OpenAIService
+- AI-powered confidence scoring
+- Intelligent corrections and inferences
+- Redundancy validation to prevent duplicate suggestions
+- Context-aware prompt engineering
 
-**📊 Salesforce Service (`services/salesforce_service.py`)**
-- **Enhanced Data Collection**: 10 core fields including segment, size ranges, dual websites
-- **Flexible SOQL Support**: JOINs, UNIONs, complex queries with security validation
-- **Optimized Performance**: Batch processing and intelligent query building
-- **Quality Flag Analysis**: Automated `not_in_TAM` and `suspicious_enrichment` detection
+### ExcelService
+- Professional report generation
+- Color-coded confidence visualization
+- Summary statistics and individual lead details
+- Multiple export formats (single lead, bulk analysis, Excel upload)
 
-**🧠 OpenAI Service (`services/openai_service.py`)**
-- **Advanced Prompt Engineering**: Comprehensive field validation and cross-checking
-- **Intelligent Assessment**: Confidence scoring with corrections and inferences
-- **Context-Aware Analysis**: Sales segment and channel information integration
-- **Structured Output**: Consistent JSON responses with emoji-coded explanations
+## API Endpoints
 
-**📈 Excel Service (`services/excel_service.py`)**
-- **Professional Formatting**: Color-coded confidence scores and bordered tables
-- **Comprehensive Reports**: All 10 core fields plus 7 assessment outputs
-- **Summary Analytics**: Lead counts, issue percentages, confidence averages
-- **Business-Ready Output**: Timestamped files with organized structure
+### Core Analysis
+- `GET /lead/<id>/confidence` - Single lead AI assessment
+- `POST /leads/analyze-query` - Bulk SOQL query analysis
+- `POST /leads/preview-query` - Preview query results
 
-**🛣️ API Routes (`routes/api_routes.py`)**
-- **Complete Endpoint Suite**: Health checks, testing, analysis, and export
-- **Security-First Validation**: SOQL query validation with result-focused approach
-- **Performance Optimized**: Two-step workflow with preview capabilities
-- **Export Integration**: Seamless Excel generation for all analysis types
+### Excel Operations
+- `POST /excel/parse` - Parse uploaded Excel file
+- `POST /excel/validate-lead-ids` - Validate Lead IDs from Excel
+- `POST /excel/analyze` - Analyze leads from Excel file
+
+### Export Endpoints
+- `POST /leads/export-analysis-data` - Export bulk analysis results
+- `POST /leads/export-single-lead-data` - Export single lead assessment
+- `POST /excel/export-analysis-with-file` - Export Excel analysis with original data
+
+### Utilities
+- `GET /test-salesforce-connection` - Test Salesforce connectivity
+- `GET /test-openai-connection` - Test OpenAI API connectivity
+- `GET /ui` - Web interface
+
+## Configuration
+
+Required environment variables in `.env`:
+
+```bash
+# Salesforce
+SF_USERNAME=your_username
+SF_PASSWORD=your_password
+SF_SECURITY_TOKEN=your_token
+SF_DOMAIN=login  # or 'test' for sandbox
+
+# OpenAI
+OPENAI_API_KEY=sk-your-key-here
+```
+
+## Lead Data Fields
+
+The system analyzes 10+ core fields:
+
+**Lead Information**: ID, Email, Channel, Segment, Size Range
+**Website Sources**: Lead-provided Website, ZoomInfo Website
+**ZoomInfo Data**: Company Name, Employee Count
+**Computed Fields**: Email domain, Quality flags
+**AI Assessment**: Confidence score, Explanations, Corrections, Inferences
+
+## Usage Examples
+
+### Web Interface (Recommended)
+Visit `http://localhost:5000/ui` for interactive analysis
+
+### API Usage
+```bash
+# Single lead assessment
+curl http://localhost:5000/lead/00Q5e00000ABC123/confidence
+
+# Bulk analysis
+curl -X POST http://localhost:5000/leads/analyze-query \
+  -H "Content-Type: application/json" \
+  -d '{"soql_query": "WHERE Email LIKE '\''%@gmail.com'\''", "max_analyze": 10}'
+```
+
+## Documentation
+
+- **[Complete API Guide](docs/README.md)** - Detailed setup and API reference
+- **[Project Overview](docs/project_breakdown.md)** - Requirements and specifications
+- **[AI Methodology](docs/lead_data_interpretation.md)** - Scoring and assessment details
+- **[Sample Export](docs/sample_result.xlsx)** - Example Excel output
 
 ---
 
-**For complete setup instructions and API documentation, see [docs/README.md](docs/README.md)** 
+For detailed API documentation and advanced usage, see [docs/README.md](docs/README.md) 

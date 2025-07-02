@@ -125,9 +125,10 @@ button:disabled {
     white-space: pre-wrap;
     font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
     font-size: 12px;
-    max-height: 400px;
+    max-height: 600px;
     overflow-y: auto;
     font-weight: 300;
+    line-height: 1.4;
 }
 
 .response.success {
@@ -195,4 +196,63 @@ button:disabled {
 
 .export-btn:hover {
     opacity: 0.9;
+}
+
+/* Excel upload specific styles */
+.excel-upload-section {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 20px;
+    padding: 20px;
+    background: #F1EFEC;
+    border-radius: 8px;
+    border: 2px dashed #C8C2B4;
+}
+
+.excel-config {
+    background: #F1EFEC;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #C8C2B4;
+    margin-bottom: 20px;
+}
+
+
+
+/* File input styling */
+input[type="file"] {
+    padding: 8px;
+    border: 2px solid #C8C2B4;
+    border-radius: 6px;
+    background: white;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+input[type="file"]:hover {
+    border-color: #0684BC;
+}
+
+/* Select dropdown styling */
+select {
+    padding: 10px;
+    border: 2px solid #C8C2B4;
+    border-radius: 6px;
+    background: white;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 14px;
+    cursor: pointer;
+    min-width: 150px;
+}
+
+select:hover {
+    border-color: #0684BC;
+}
+
+select:focus {
+    outline: none;
+    border-color: #0684BC;
+    box-shadow: 0 0 0 3px rgba(6, 132, 188, 0.1);
 } 

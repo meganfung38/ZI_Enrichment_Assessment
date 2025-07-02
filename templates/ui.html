@@ -69,6 +69,43 @@
             
             <div id="confidenceResponse" class="response" style="display: none;"></div>
         </div>
+
+        <!-- Excel Upload Analysis Endpoint -->
+        <div class="endpoint">
+            <h2><span class="method-badge post">POST</span>/excel/analyze</h2>
+            <div class="endpoint-description">
+                Upload an Excel file containing Lead IDs for bulk analysis. The system will validate all Lead IDs, then analyze their ZoomInfo enrichment quality with AI confidence scoring. Export combines your original data with AI analysis results.
+            </div>
+            
+            <form id="excelForm" enctype="multipart/form-data">
+                <div class="excel-upload-section">
+                    <label for="excelFile">Excel File (.xlsx or .xls):</label>
+                    <input type="file" id="excelFile" accept=".xlsx,.xls" required>
+                    <button type="button" id="parseExcelBtn" disabled>1. Parse File</button>
+                </div>
+                
+                <div id="excelConfig" class="excel-config" style="display: none;">
+                    <div class="form-row">
+                        <div>
+                            <label for="sheetSelect">Sheet:</label>
+                            <select id="sheetSelect"></select>
+                        </div>
+                        <div>
+                            <label for="leadIdColumn">Lead ID Column:</label>
+                            <select id="leadIdColumn"></select>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button type="button" id="validateLeadIdsBtn" disabled>2. Validate Lead IDs</button>
+                        <button type="button" id="analyzeExcelBtn" disabled>3. Analyze All Leads</button>
+                        <button type="button" id="exportExcelBtn" disabled class="export-btn">📊 Export Results</button>
+                    </div>
+                </div>
+            </form>
+            
+            <div id="excelResponse" class="response" style="display: none;"></div>
+        </div>
     </div>
 
     <script src="{{ url_for('static', filename='js/ui-handlers.js') }}"></script>
