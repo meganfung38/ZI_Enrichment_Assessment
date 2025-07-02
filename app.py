@@ -225,6 +225,8 @@ def create_app(config_name=None):
 
     <script>
         let previewData = null;
+        let analysisResults = null;
+        let singleLeadResults = null;
         
         // Preview Button Handler
         document.getElementById('previewBtn').addEventListener('click', async function(e) {
@@ -348,10 +350,12 @@ def create_app(config_name=None):
                 const data = await response.json();
                 
                 if (response.ok) {
+                    analysisResults = data; // Store analysis results for export
                     responseDiv.innerHTML = JSON.stringify(data, null, 2);
                     responseDiv.className = 'response success';
                     document.getElementById('exportBtn').disabled = false; // Enable the correct export button
                 } else {
+                    analysisResults = null; // Clear analysis results on error
                     responseDiv.innerHTML = JSON.stringify(data, null, 2);
                     responseDiv.className = 'response error';
                     document.getElementById('exportBtn').disabled = true;
@@ -370,32 +374,25 @@ def create_app(config_name=None):
         document.getElementById('exportBtn').addEventListener('click', async function(e) {
             e.preventDefault();
             
-            if (!previewData) {
-                alert('Please run the preview first before exporting.');
+            if (!analysisResults) {
+                alert('Please run the analysis first before exporting.');
                 return;
             }
             
             const button = e.target;
-            const whereClause = document.getElementById('soqlQuery').value.trim();
-            const maxAnalyze = parseInt(document.getElementById('maxAnalyze').value);
-            
-            // Build SOQL query - let backend handle empty queries
-            const fullQuery = whereClause;
             
             // Show loading state
             button.disabled = true;
             button.textContent = 'Exporting...';
             
             try {
-                const response = await fetch('/leads/analyze-query/export', {
+                const response = await fetch('/leads/export-analysis-data', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        soql_query: fullQuery,
-                        max_analyze: maxAnalyze,
-                        include_ai_assessment: true
+                        analysis_data: analysisResults.data
                     })
                 });
                 
@@ -444,6 +441,10 @@ def create_app(config_name=None):
             const button = e.target.querySelector('button');
             const leadId = document.getElementById('leadId').value.trim();
             
+            // Clear previous results when analyzing a new lead
+            singleLeadResults = null;
+            document.getElementById('exportConfidenceBtn').disabled = true;
+            
             // Validate Lead ID
             if (!leadId) {
                 responseDiv.innerHTML = 'Please enter a Salesforce Lead ID.';
@@ -471,11 +472,13 @@ def create_app(config_name=None):
                 const data = await response.json();
                 
                 if (response.ok) {
+                    singleLeadResults = data; // Store single lead results for export
                     responseDiv.innerHTML = JSON.stringify(data, null, 2);
                     responseDiv.className = 'response success';
                     // Enable export button after successful analysis
                     document.getElementById('exportConfidenceBtn').disabled = false;
                 } else {
+                    singleLeadResults = null; // Clear single lead results on error
                     responseDiv.innerHTML = JSON.stringify(data, null, 2);
                     responseDiv.className = 'response error';
                     // Keep export button disabled on error
@@ -494,10 +497,8 @@ def create_app(config_name=None):
         document.getElementById('exportConfidenceBtn').addEventListener('click', async function(e) {
             e.preventDefault();
             
-            const leadId = document.getElementById('leadId').value.trim();
-            
-            if (!leadId) {
-                alert('Please enter a Lead ID first.');
+            if (!singleLeadResults) {
+                alert('Please run the confidence analysis first before exporting.');
                 return;
             }
             
@@ -508,7 +509,15 @@ def create_app(config_name=None):
             button.textContent = 'Exporting...';
             
             try {
-                const response = await fetch(`/lead/${leadId}/confidence/export`);
+                const response = await fetch('/leads/export-single-lead-data', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        lead_data: singleLeadResults
+                    })
+                });
                 
                 if (response.ok) {
                     // Handle file download
@@ -520,6 +529,7 @@ def create_app(config_name=None):
                     
                     // Extract filename from response headers or use default
                     const contentDisposition = response.headers.get('Content-Disposition');
+                    const leadId = singleLeadResults.lead_data?.Id || 'unknown';
                     let filename = `lead_confidence_${leadId}.xlsx`;
                     if (contentDisposition) {
                         const filenameMatch = contentDisposition.match(/filename="(.+)"/);
@@ -545,6 +555,23 @@ def create_app(config_name=None):
                 button.disabled = false;
                 button.textContent = '📊 Export to Excel';
             }
+        });
+        
+        // Clear stored results when lead ID changes
+        document.getElementById('leadId').addEventListener('input', function() {
+            singleLeadResults = null;
+            document.getElementById('exportConfidenceBtn').disabled = true;
+        });
+        
+        // Clear stored results when query changes
+        document.getElementById('soqlQuery').addEventListener('input', function() {
+            analysisResults = null;
+            document.getElementById('exportBtn').disabled = true;
+        });
+        
+        document.getElementById('maxAnalyze').addEventListener('input', function() {
+            analysisResults = null;
+            document.getElementById('exportBtn').disabled = true;
         });
     </script>
 </body>
