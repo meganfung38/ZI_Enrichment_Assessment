@@ -32,8 +32,9 @@
 | *Demand Funnel : Lead : Email (input information for enrichment)*  | Email |
 | *RTLM Channel* | FIrst\_Channel\_\_c  |
 | *Segment Name* | SegmentName\_\_r.Name |
-| *Demand Funnel : Lead : No. of Employees*  | LS\_Company\_Size\_Range\_\_c |
 | *Demand Funnel : Lead : Website*  | Website |
+| *Demand Funnel : Lead : Company* | Company  |
+| *Demand Funnel : Lead : No. of Employees*  | LS\_Company\_Size\_Range\_\_c |
 | *Demand Funnel : Lead : ZI Website (enriched)* | ZI\_Website\_\_c |
 | *Demand Funnel : Lead : Account Name (enriched)*  | ZI\_Company\_Name\_\_c |
 | *Demand Funnel : Lead : ZI Employees (enriched)*  | ZI\_Employees\_\_c |

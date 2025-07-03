@@ -676,7 +676,7 @@ def parse_excel_file():
 
 @api_bp.route('/excel/validate-lead-ids', methods=['POST'])
 def validate_excel_lead_ids():
-    """Validate Lead IDs from Excel file and return preview of valid leads"""
+    """Validate Lead IDs from Excel file upload"""
     try:
         # Check if file is present
         if 'file' not in request.files:
@@ -697,6 +697,7 @@ def validate_excel_lead_ids():
         sheet_name = request.form.get('sheet_name')
         lead_id_column = request.form.get('lead_id_column')
         
+        # Validate parameters
         if not sheet_name:
             return jsonify({
                 'status': 'error',
@@ -725,6 +726,13 @@ def validate_excel_lead_ids():
         
         lead_ids = extraction_result['lead_ids']
         
+        # 🔍 DEBUG: Log the extracted Lead IDs for debugging
+        print(f"🔍 DEBUG: Extracted {len(lead_ids)} Lead IDs from Excel:")
+        for i, lid in enumerate(lead_ids[:5]):  # Show first 5 for debugging
+            print(f"   {i+1}. '{lid}' (length: {len(lid)}, type: {type(lid)})")
+        if len(lead_ids) > 5:
+            print(f"   ... and {len(lead_ids) - 5} more")
+        
         if not lead_ids:
             return jsonify({
                 'status': 'error',
@@ -743,11 +751,21 @@ def validate_excel_lead_ids():
         # Check if any Lead IDs are invalid (strict validation)
         invalid_lead_ids = validation_result.get('invalid_lead_ids', [])
         if invalid_lead_ids:
+            # 🔍 DEBUG: Log the invalid Lead IDs for debugging
+            print(f"🔍 DEBUG: Found {len(invalid_lead_ids)} invalid Lead IDs:")
+            for i, lid in enumerate(invalid_lead_ids[:10]):  # Show first 10 for debugging
+                print(f"   {i+1}. '{lid}' (length: {len(lid)}, type: {type(lid)})")
+            
             return jsonify({
                 'status': 'error',
                 'message': f'Invalid Lead IDs found: {", ".join(invalid_lead_ids)}. All Lead IDs must be valid to proceed with analysis.',
                 'invalid_lead_ids': invalid_lead_ids,
-                'valid_lead_ids': validation_result.get('valid_lead_ids', [])
+                'valid_lead_ids': validation_result.get('valid_lead_ids', []),
+                'debug_info': {
+                    'total_extracted': len(lead_ids),
+                    'format_invalid_count': validation_result.get('format_invalid_count', 0),
+                    'sf_invalid_count': validation_result.get('sf_invalid_count', 0)
+                }
             }), 400
         
         # All Lead IDs are valid
@@ -758,7 +776,7 @@ def validate_excel_lead_ids():
             'message': f'All {len(valid_lead_ids)} Lead IDs are valid',
             'data': {
                 'total_lead_ids': len(lead_ids),
-                'valid_lead_ids': valid_lead_ids,
+                'valid_lead_ids': len(valid_lead_ids),
                 'invalid_lead_ids': [],
                 'original_data_rows': extraction_result['total_rows']
             }
@@ -1020,4 +1038,61 @@ def export_excel_analysis_with_file():
         return jsonify({
             'status': 'error',
             'message': f'Error exporting Excel analysis with file: {str(e)}'
+        }), 500
+
+@api_bp.route('/test-lead-validation', methods=['POST'])
+def test_lead_validation():
+    """Test Lead ID validation with a list of Lead IDs"""
+    try:
+        if not request.is_json:
+            return jsonify({
+                'status': 'error',
+                'message': 'Request must be JSON'
+            }), 400
+        
+        data = request.get_json()
+        lead_ids = data.get('lead_ids', [])
+        
+        if not lead_ids:
+            return jsonify({
+                'status': 'error',
+                'message': 'No Lead IDs provided'
+            }), 400
+        
+        # 🔍 DEBUG: Log the provided Lead IDs
+        print(f"🔍 DEBUG: Testing validation for {len(lead_ids)} Lead IDs:")
+        for i, lid in enumerate(lead_ids[:5]):  # Show first 5 for debugging
+            print(f"   {i+1}. '{lid}' (length: {len(lid)}, type: {type(lid)})")
+        if len(lead_ids) > 5:
+            print(f"   ... and {len(lead_ids) - 5} more")
+        
+        # Validate Lead IDs with Salesforce
+        validation_result, validation_message = sf_service.validate_lead_ids(lead_ids)
+        
+        if validation_result is None:
+            return jsonify({
+                'status': 'error',
+                'message': validation_message
+            }), 500
+        
+        return jsonify({
+            'status': 'success',
+            'message': validation_message,
+            'data': {
+                'total_provided': len(lead_ids),
+                'valid_lead_ids': validation_result.get('valid_lead_ids', []),
+                'invalid_lead_ids': validation_result.get('invalid_lead_ids', []),
+                'format_invalid_count': validation_result.get('format_invalid_count', 0),
+                'sf_invalid_count': validation_result.get('sf_invalid_count', 0),
+                'validation_details': {
+                    'total_valid': len(validation_result.get('valid_lead_ids', [])),
+                    'total_invalid': len(validation_result.get('invalid_lead_ids', []))
+                }
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Error testing Lead ID validation: {str(e)}'
         }), 500

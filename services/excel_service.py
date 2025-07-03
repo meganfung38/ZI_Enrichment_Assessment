@@ -42,14 +42,14 @@ class ExcelService:
         
         # Add title and metadata
         current_row = 1
-        ws.merge_cells(f'A{current_row}:L{current_row}')
+        ws.merge_cells(f'A{current_row}:R{current_row}')
         ws[f'A{current_row}'] = "ZoomInfo Lead Quality Analysis Report"
         ws[f'A{current_row}'].font = self.title_font
         ws[f'A{current_row}'].alignment = self.center_alignment
         current_row += 1
         
         # Add generation timestamp
-        ws.merge_cells(f'A{current_row}:L{current_row}')
+        ws.merge_cells(f'A{current_row}:R{current_row}')
         ws[f'A{current_row}'] = f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         ws[f'A{current_row}'].alignment = self.center_alignment
         current_row += 2
@@ -62,7 +62,7 @@ class ExcelService:
         # Add headers for all lead data fields plus assessment outputs
         headers = [
             "Lead ID", "Email", "First Channel", "Segment Name", "Company Size Range",
-            "Website", "ZI Website", "ZI Company Name", "ZI Employees", "Email Domain",
+            "Website", "Company", "ZI Website", "ZI Company Name", "ZI Employees", "Email Domain",
             "Not in TAM", "Suspicious Enrichment", "Confidence Score", 
             "Explanation", "Corrections", "Inferences", "AI Status"
         ]
@@ -175,6 +175,7 @@ class ExcelService:
             lead.get('SegmentName', ''),                 # Segment Name
             lead.get('LS_Company_Size_Range__c', ''),    # Company Size Range
             lead.get('Website', ''),                     # Website
+            lead.get('Company', ''),                     # Company
             lead.get('ZI_Website__c', ''),               # ZI Website
             lead.get('ZI_Company_Name__c', ''),          # ZI Company Name
             lead.get('ZI_Employees__c', ''),             # ZI Employees
@@ -193,13 +194,13 @@ class ExcelService:
             cell.border = self.border
             
             # Special formatting for certain columns with RingCentral colors
-            if col in [11, 12]:  # Boolean flags (Not in TAM, Suspicious Enrichment)
+            if col in [12, 13]:  # Boolean flags (Not in TAM, Suspicious Enrichment)
                 cell.alignment = self.center_alignment
                 if value == 'Yes':
                     # Light red background for issues (softer than pure red)
                     cell.fill = PatternFill(start_color="FFE6E6", end_color="FFE6E6", fill_type="solid")
                     cell.font = Font(bold=True, color=self.rc_warm_black)
-            elif col == 13:  # Confidence score with RingCentral color scheme
+            elif col == 14:  # Confidence score with RingCentral color scheme
                 cell.alignment = self.center_alignment
                 cell.font = Font(bold=True, color="FFFFFF")
                 if isinstance(value, (int, float)) and value > 0:
@@ -212,7 +213,7 @@ class ExcelService:
                     else:
                         # Low confidence: Muted red with dark text
                         cell.fill = PatternFill(start_color="DC3545", end_color="DC3545", fill_type="solid")
-            elif col in [14, 15, 16]:  # Text fields that might be long (Explanation, Corrections, Inferences)
+            elif col in [15, 16, 17]:  # Text fields that might be long (Explanation, Corrections, Inferences)
                 cell.alignment = self.wrap_alignment
     
     def _auto_adjust_columns(self, ws):
@@ -224,17 +225,18 @@ class ExcelService:
             4: 15,   # Segment Name
             5: 18,   # Company Size Range
             6: 20,   # Website
-            7: 20,   # ZI Website
-            8: 20,   # ZI Company Name
-            9: 12,   # ZI Employees
-            10: 15,  # Email Domain
-            11: 12,  # Not in TAM
-            12: 15,  # Suspicious Enrichment
-            13: 12,  # Confidence Score
-            14: 40,  # Explanation
-            15: 25,  # Corrections
-            16: 25,  # Inferences
-            17: 12   # AI Status
+            7: 20,   # Company
+            8: 20,   # ZI Website
+            9: 20,   # ZI Company Name
+            10: 12,  # ZI Employees
+            11: 15,  # Email Domain
+            12: 12,  # Not in TAM
+            13: 15,  # Suspicious Enrichment
+            14: 12,  # Confidence Score
+            15: 40,  # Explanation
+            16: 25,  # Corrections
+            17: 25,  # Inferences
+            18: 12   # AI Status
         }
         
         for col, width in column_widths.items():
@@ -302,8 +304,8 @@ class ExcelService:
     def extract_lead_ids_from_excel(self, file_content, sheet_name, lead_id_column):
         """Extract Lead IDs from specified column in Excel file"""
         try:
-            # Use pandas for easier data extraction
-            df = pd.read_excel(io.BytesIO(file_content), sheet_name=sheet_name)
+            # Use pandas for easier data extraction - read as string to preserve Lead ID format
+            df = pd.read_excel(io.BytesIO(file_content), sheet_name=sheet_name, dtype={lead_id_column: str})
             
             if lead_id_column not in df.columns:
                 return {
@@ -313,8 +315,22 @@ class ExcelService:
             
             # Extract Lead IDs and remove null/empty values
             lead_ids = df[lead_id_column].dropna().astype(str).tolist()
-            # Remove empty strings and whitespace-only strings
-            lead_ids = [lid.strip() for lid in lead_ids if lid.strip()]
+            # Remove empty strings and whitespace-only strings, and handle Excel formatting issues
+            cleaned_lead_ids = []
+            for lid in lead_ids:
+                lid_str = str(lid).strip()
+                # Remove any Excel formatting artifacts
+                if lid_str and lid_str.lower() not in ['nan', 'none', 'null']:
+                    # Handle potential floating point conversion (e.g., "1.23456789012345e+17")
+                    if 'e+' in lid_str.lower():
+                        try:
+                            # Convert scientific notation back to full number
+                            lid_str = f"{float(lid_str):.0f}"
+                        except:
+                            pass
+                    cleaned_lead_ids.append(lid_str)
+            
+            lead_ids = cleaned_lead_ids
             
             # Get original data for later merging - handle NaN values
             # Replace NaN with empty string to avoid JSON serialization issues
@@ -334,6 +350,28 @@ class ExcelService:
                 'error': f"Error extracting Lead IDs: {str(e)}"
             }
     
+    def _convert_15_to_18_char_id(self, id_15):
+        """Convert 15-character Salesforce ID to 18-character format"""
+        if len(id_15) != 15:
+            return id_15
+        
+        # Salesforce ID conversion algorithm
+        suffix = ""
+        for i in range(3):
+            chunk = id_15[i*5:(i+1)*5]
+            chunk_value = 0
+            for j, char in enumerate(chunk):
+                if char.isupper():
+                    chunk_value += 2 ** j
+            
+            # Convert to base-32 character
+            if chunk_value < 26:
+                suffix += chr(ord('A') + chunk_value)
+            else:
+                suffix += str(chunk_value - 26)
+        
+        return id_15 + suffix
+
     def create_excel_with_analysis(self, original_data, analysis_results, lead_id_column, filename_prefix="excel_analysis"):
         """Create Excel file combining original data with AI analysis results"""
         try:
@@ -342,8 +380,48 @@ class ExcelService:
             # Ensure no NaN values that could cause JSON serialization issues
             df_original = df_original.where(pd.notnull(df_original), '')
             
-            # Create analysis DataFrame
-            analysis_dict = {result['Id']: result for result in analysis_results}
+            # Create analysis dictionary for fast lookup with both 15 and 18 char Lead IDs
+            analysis_dict = {}
+            print(f"🔍 DEBUG: Creating analysis dictionary from {len(analysis_results)} results")
+            for i, result in enumerate(analysis_results):
+                lead_id = result.get('Id', '')
+                if lead_id:
+                    lead_id_str = str(lead_id).strip()
+                    print(f"   Result {i+1}: Lead ID '{lead_id_str}' (length: {len(lead_id_str)})")
+                    
+                    # Store with the original ID format
+                    analysis_dict[lead_id_str] = result
+                    analysis_dict[lead_id_str.upper()] = result
+                    analysis_dict[lead_id_str.lower()] = result
+                    
+                    # If it's 18 characters, also store the 15-character version
+                    if len(lead_id_str) == 18:
+                        lead_id_15 = lead_id_str[:15]
+                        analysis_dict[lead_id_15] = result
+                        analysis_dict[lead_id_15.upper()] = result
+                        analysis_dict[lead_id_15.lower()] = result
+                        print(f"      Also stored as 15-char: '{lead_id_15}'")
+                    
+                    # If it's 15 characters, also store the 18-character version
+                    elif len(lead_id_str) == 15:
+                        lead_id_18 = self._convert_15_to_18_char_id(lead_id_str)
+                        analysis_dict[lead_id_18] = result
+                        analysis_dict[lead_id_18.upper()] = result
+                        analysis_dict[lead_id_18.lower()] = result
+                        print(f"      Also stored as 18-char: '{lead_id_18}'")
+            
+            print(f"🔍 DEBUG: Analysis dictionary contains {len(analysis_dict)} total entries")
+            
+            # 🔍 DEBUG: Show what Lead IDs are available in analysis dictionary
+            print(f"🔍 DEBUG: Analysis dictionary contains {len(analysis_dict)} Lead ID entries:")
+            unique_ids = set()
+            for key in analysis_dict.keys():
+                if len(key) in [15, 18]:  # Only show actual Lead IDs, not upper/lower variants
+                    unique_ids.add(key)
+            for i, unique_id in enumerate(sorted(unique_ids)[:5]):  # Show first 5
+                print(f"   {i+1}. '{unique_id}' (length: {len(unique_id)})")
+            if len(unique_ids) > 5:
+                print(f"   ... and {len(unique_ids) - 5} more")
             
             # Add analysis columns
             analysis_columns = {
@@ -357,31 +435,60 @@ class ExcelService:
             }
             
             for _, row in df_original.iterrows():
-                lead_id = str(row[lead_id_column]).strip()
-                analysis = analysis_dict.get(lead_id, {})
+                original_lead_id = str(row[lead_id_column]).strip()
                 
-                # Extract analysis data
+                # Try multiple formats to find a match
+                analysis = None
+                for potential_id in [original_lead_id, original_lead_id.upper(), original_lead_id.lower()]:
+                    if potential_id in analysis_dict:
+                        analysis = analysis_dict[potential_id]
+                        break
+                
+                if not analysis:
+                    analysis = {}
+                
+                # 🔍 DEBUG: Log what we found for this lead
+                print(f"🔍 DEBUG: Lead ID '{original_lead_id}' analysis:")
+                print(f"   - Found analysis: {bool(analysis)}")
+                if analysis:
+                    print(f"   - Has confidence_assessment: {bool(analysis.get('confidence_assessment'))}")
+                    print(f"   - AI assessment status: {analysis.get('ai_assessment_status', 'NONE')}")
+                    print(f"   - not_in_TAM: {analysis.get('not_in_TAM', 'NONE')}")
+                    print(f"   - suspicious_enrichment: {analysis.get('suspicious_enrichment', 'NONE')}")
+                    confidence_assessment = analysis.get('confidence_assessment', {})
+                    if confidence_assessment:
+                        print(f"   - Confidence score: {confidence_assessment.get('confidence_score', 'NONE')}")
+                        print(f"   - Explanation bullets: {len(confidence_assessment.get('explanation_bullets', []))}")
+                        print(f"   - Corrections: {confidence_assessment.get('corrections', {})}")
+                        print(f"   - Inferences: {confidence_assessment.get('inferences', {})}")
+                
+                # Extract analysis data safely
                 confidence_assessment = analysis.get('confidence_assessment', {})
                 
-                analysis_columns['AI_Confidence_Score'].append(
-                    confidence_assessment.get('confidence_score', '') if confidence_assessment else ''
-                )
+                # Handle case where confidence_assessment might be None
+                if confidence_assessment is None:
+                    confidence_assessment = {}
                 
+                # Confidence Score
+                confidence_score = confidence_assessment.get('confidence_score', '') if confidence_assessment else ''
+                analysis_columns['AI_Confidence_Score'].append(confidence_score)
+                
+                # Explanation
                 explanation_bullets = confidence_assessment.get('explanation_bullets', []) if confidence_assessment else []
-                analysis_columns['AI_Explanation'].append(
-                    '\n'.join(explanation_bullets) if explanation_bullets else ''
-                )
+                explanation_text = '\n'.join(explanation_bullets) if explanation_bullets else ''
+                analysis_columns['AI_Explanation'].append(explanation_text)
                 
+                # Corrections - handle empty dict properly
                 corrections = confidence_assessment.get('corrections', {}) if confidence_assessment else {}
-                analysis_columns['AI_Corrections'].append(
-                    json.dumps(corrections, indent=2) if corrections else ''
-                )
+                corrections_text = json.dumps(corrections, indent=2) if corrections else ''
+                analysis_columns['AI_Corrections'].append(corrections_text)
                 
+                # Inferences - handle empty dict properly  
                 inferences = confidence_assessment.get('inferences', {}) if confidence_assessment else {}
-                analysis_columns['AI_Inferences'].append(
-                    json.dumps(inferences, indent=2) if inferences else ''
-                )
+                inferences_text = json.dumps(inferences, indent=2) if inferences else ''
+                analysis_columns['AI_Inferences'].append(inferences_text)
                 
+                # Quality flags
                 analysis_columns['AI_Not_in_TAM'].append(
                     'Yes' if analysis.get('not_in_TAM') else 'No'
                 )
@@ -390,9 +497,30 @@ class ExcelService:
                     'Yes' if analysis.get('suspicious_enrichment') else 'No'
                 )
                 
-                analysis_columns['AI_Status'].append(
-                    analysis.get('ai_assessment_status', 'Not Analyzed')
-                )
+                # AI Status - improved logic
+                if analysis:
+                    # Check if we have a valid confidence assessment
+                    has_confidence_score = (confidence_assessment and 
+                                          isinstance(confidence_assessment.get('confidence_score'), (int, float)) and 
+                                          confidence_assessment.get('confidence_score') is not None)
+                    
+                    if has_confidence_score:
+                        ai_status = 'Analyzed'
+                    elif analysis.get('ai_assessment_status') == 'success':
+                        ai_status = 'Analyzed'
+                    elif analysis.get('ai_assessment_status'):
+                        ai_status = str(analysis.get('ai_assessment_status'))
+                    else:
+                        # If we have analysis data but no AI assessment, check if we have any AI data
+                        has_ai_data = (confidence_assessment and 
+                                     (confidence_assessment.get('explanation_bullets') or 
+                                      confidence_assessment.get('corrections') or 
+                                      confidence_assessment.get('inferences')))
+                        ai_status = 'Analyzed' if has_ai_data else 'Analysis Available'
+                else:
+                    ai_status = 'Not Analyzed'
+                
+                analysis_columns['AI_Status'].append(ai_status)
             
             # Add analysis columns to original DataFrame
             for col_name, col_data in analysis_columns.items():
@@ -401,6 +529,7 @@ class ExcelService:
             # Create Excel file with formatting
             wb = Workbook()
             ws = wb.active
+            assert ws is not None  # Type assertion for linter
             ws.title = "Analysis Results"
             
             # Add title with RingCentral styling
