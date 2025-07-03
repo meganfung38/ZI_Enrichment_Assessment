@@ -16,8 +16,9 @@ LEAD_QA_SYSTEM_PROMPT = """You are a data quality assistant. Your job is to eval
 | Email  | String  | The lead's email address | Provided by the lead directly | Trusted | Use to infer company identity  |
 | First_Channel__c | String | Channel lead came in through  | Internal System  | Trusted | Use as context to determine if lead data was populated |
 | SegmentName | String  | Which sales segment the lead belongs to | Specified by lead themselves or sales rep working with the lead | Trusted but potentially inaccurate | Use to compare against enriched data |
-| LS_Company_Size_Range__c | String representing a range (eg. 10-100) | Internal guess at company size range | Specified by lead themselves or sales rep working with lead | Trusted but potentially inaccurate | Use to compare against enriched data |
 | Website  | String  | The company's website | Specified by the lead themselves or a sales rep working with the lead  | Trusted but potentially inaccurate | Use to compare against ZI_Website__c and ZI_Company__c  |
+| Company | String | Company name | Specified by the lead themselves or a sales rep working with the lead | Trusted by potentially inaccurate | Use to compare against ZI_Website__c and ZI_Company__c |
+| LS_Company_Size_Range__c | String representing a range (eg. 10-100) | Internal guess at company size range | Specified by lead themselves or sales rep working with lead | Trusted but potentially inaccurate | Use to compare against enriched data |
 | ZI_Website__c | String | The company's website | Enriched by ZoomInfo | To be validated | Compare the email_domain, Website, and  ZI_Company_Name__c for consistency  |
 | ZI_Company_Name__c | String  | Company name  | Enriched by ZoomInfo  | To be validated | Compare against email_domain, Website, and ZI_Website__c for consistency |
 | ZI_Employees__c | Integer | Employee count | Enriched by ZoomInfo | To be validated  | Compare against SegmentName and LS_Company_Size_Range__c for consistency and use to assess whether company is "large"  |
@@ -31,9 +32,9 @@ LEAD_QA_SYSTEM_PROMPT = """You are a data quality assistant. Your job is to eval
 
 | Heuristic  | PASS (✅)	 | CAUTION (⚠️)	 | FAIL (❌) |
 | :---- | :---- | :---- | :---- |
-| Email domain, website, and company are consistent | Corporate domain matches either Website or ZI_Website__c and both match ZI_Company_Name__c | Partial match  | Obvious mismatch or free email domain with enterprise claim  |
-| Employee count sanity | ZI_Employees__c within claimed segment size (use SegmentName, LS_Company_Size_Range__c if present) | Minor discrepancy (+/- segment)  | Major discrepancy (>= 2 segments) |
-| Large company completeness (ZI_Employees__c >= 100)  | Website and ZI_Company_Name__c is populated and email_domain is corporate | Some gaps in enrichment | Very sparsely populated enrichment |
+| Email domain, website, and company are consistent | Corporate domain matches: Company or ZI_Company_Name__c  AND  Website or ZI_Website__c | Partial match  | Obvious mismatch or free email domain with enterprise claim  |
+| Employee count sanity | ZI_Employees__c within claimed segment size (use SegmentName, LS_Company_Size_Range__c if present) and external sources confirm that Company contains the specified number of employees.  | Minor discrepancy (+/- segment)  | Major discrepancy (>= 2 segments) |
+| Large company completeness (ZI_Employees__c >= 100)  | Website or ZI_Website__c populated  Company or ZI_Company_Name__c populated  Email domain is corporate | Some gaps in enrichment | Very sparsely populated enrichment |
 | Quality flags (not_in_TAM and suspicious_enrichment) | Both are false   | One or more is true |  |
 
 2. Use external sources (Clearbit, LinkedIn, Hunter.io MX lookup, OpenCorporates, etc.) to support your evaluation. If none is provided, reason heuristically from public knowledge patterns. 
@@ -82,7 +83,7 @@ LEAD_QA_SYSTEM_PROMPT = """You are a data quality assistant. Your job is to eval
   * ⚠️ caution: creates a moderate double or needs follow up   
   * ❌ issue: severe mismatch, drives score down   
 * State the logical reason, not the math.   
-  * Here's are example bullets:   
+  * Here are example bullets:   
     * "❌  Large firm (250 employees) missing from TAM lowers trust."    
     * "⚠️  Gmail address + no website raises authenticity doubts."    
     * "✅  LinkedIn shows 230 employees—matches enrichment."    
@@ -174,10 +175,14 @@ def validate_and_clean_assessment(assessment, lead_data):
             return None
         return str(url).strip().lower()
     
-    # Get existing website values from lead data
+    # Get existing website and company values from lead data
     existing_websites = {
         'Website': lead_data.get('Website'),
         'ZI_Website__c': lead_data.get('ZI_Website__c')
+    }
+    existing_companies = {
+        'Company': lead_data.get('Company'),
+        'ZI_Company_Name__c': lead_data.get('ZI_Company_Name__c')
     }
     
     # Clean corrections
@@ -212,6 +217,21 @@ def validate_and_clean_assessment(assessment, lead_data):
                             should_keep = False
                             print(f"🧹 Removed redundant correction: {field} '{value}' (exact match with {other_field}: '{other_value}')")
                             break
+        elif field in ['Company', 'ZI_Company_Name__c']:
+            # Check if this correction is just the same company name
+            existing_value = existing_companies.get(field)
+            if existing_value and str(existing_value).strip().lower() == str(value).strip().lower():
+                should_keep = False
+                print(f"🧹 Removed redundant correction: {field} '{existing_value}' -> '{value}' (same company)")
+            
+            # Also check if this correction matches any other company field (cross-field redundancy)
+            if should_keep:
+                for other_field, other_value in existing_companies.items():
+                    if other_field != field and other_value:
+                        if str(other_value).strip().lower() == str(value).strip().lower():
+                            should_keep = False
+                            print(f"🧹 Removed redundant correction: {field} '{value}' (same company as {other_field}: '{other_value}')")
+                            break
         
         if should_keep:
             cleaned_corrections[field] = value
@@ -242,9 +262,17 @@ def validate_and_clean_assessment(assessment, lead_data):
                         should_keep = False
                         print(f"🧹 Removed redundant inference: {field} '{value}' (exact match with {existing_field}: '{existing_value}')")
                         break
+        elif should_keep and field in ['Company', 'ZI_Company_Name__c']:
+            # Check if any existing company field has the same name
+            for existing_field, existing_value in existing_companies.items():
+                if existing_value:
+                    if str(existing_value).strip().lower() == str(value).strip().lower():
+                        should_keep = False
+                        print(f"🧹 Removed redundant inference: {field} '{value}' (same company as {existing_field}: '{existing_value}')")
+                        break
         
-        # For non-website fields, also check for exact string matches with corrections
-        if should_keep and field not in ['Website', 'ZI_Website__c']:
+        # For non-website/company fields, also check for exact string matches with corrections
+        if should_keep and field not in ['Website', 'ZI_Website__c', 'Company', 'ZI_Company_Name__c']:
             if field in cleaned_corrections:
                 correction_value = cleaned_corrections[field]
                 if str(value).strip() == str(correction_value).strip():
@@ -273,6 +301,7 @@ Lead Data:
 - SegmentName: {lead_data.get('SegmentName', 'null')}
 - LS_Company_Size_Range__c: {lead_data.get('LS_Company_Size_Range__c', 'null')}
 - Website: {lead_data.get('Website', 'null')}
+- Company: {lead_data.get('Company', 'null')}
 - ZI_Website__c: {lead_data.get('ZI_Website__c', 'null')}
 - ZI_Company_Name__c: {lead_data.get('ZI_Company_Name__c', 'null')}
 - ZI_Employees__c: {lead_data.get('ZI_Employees__c', 'null')}

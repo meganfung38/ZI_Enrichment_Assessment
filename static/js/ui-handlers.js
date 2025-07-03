@@ -199,6 +199,7 @@ async function handleQueryFormSubmit(e) {
                 output += `Segment: ${lead.SegmentName || 'N/A'}\n`;
                 output += `Company Size Range: ${lead.LS_Company_Size_Range__c || 'N/A'}\n`;
                 output += `Website: ${lead.Website || 'N/A'}\n`;
+                output += `Company: ${lead.Company || 'N/A'}\n`;
                 output += `ZI Company: ${lead.ZI_Company_Name__c || 'N/A'}\n`;
                 output += `ZI Employees: ${lead.ZI_Employees__c || 'N/A'}\n`;
                 output += `ZI Website: ${lead.ZI_Website__c || 'N/A'}\n`;
@@ -347,6 +348,7 @@ async function handleConfidenceFormSubmit(e) {
             output += `Segment: ${lead.SegmentName || 'N/A'}\n`;
             output += `Company Size Range: ${lead.LS_Company_Size_Range__c || 'N/A'}\n`;
             output += `Website: ${lead.Website || 'N/A'}\n`;
+            output += `Company: ${lead.Company || 'N/A'}\n`;
             output += `ZI Company: ${lead.ZI_Company_Name__c || 'N/A'}\n`;
             output += `ZI Employees: ${lead.ZI_Employees__c || 'N/A'}\n`;
             output += `ZI Website: ${lead.ZI_Website__c || 'N/A'}\n`;
@@ -711,6 +713,7 @@ async function handleAnalyzeExcel(e) {
                 output += `Segment: ${lead.SegmentName || 'N/A'}\n`;
                 output += `Company Size Range: ${lead.LS_Company_Size_Range__c || 'N/A'}\n`;
                 output += `Website: ${lead.Website || 'N/A'}\n`;
+                output += `Company: ${lead.Company || 'N/A'}\n`;
                 output += `ZI Company: ${lead.ZI_Company_Name__c || 'N/A'}\n`;
                 output += `ZI Employees: ${lead.ZI_Employees__c || 'N/A'}\n`;
                 output += `ZI Website: ${lead.ZI_Website__c || 'N/A'}\n`;

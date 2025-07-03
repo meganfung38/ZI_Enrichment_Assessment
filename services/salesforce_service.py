@@ -17,6 +17,28 @@ class SalesforceService:
         self.sf: Optional[Salesforce] = None
         self._is_connected = False
     
+    def _convert_15_to_18_char_id(self, id_15):
+        """Convert 15-character Salesforce ID to 18-character format"""
+        if len(id_15) != 15:
+            return id_15
+        
+        # Salesforce ID conversion algorithm
+        suffix = ""
+        for i in range(3):
+            chunk = id_15[i*5:(i+1)*5]
+            chunk_value = 0
+            for j, char in enumerate(chunk):
+                if char.isupper():
+                    chunk_value += 2 ** j
+            
+            # Convert to base-32 character
+            if chunk_value < 26:
+                suffix += chr(ord('A') + chunk_value)
+            else:
+                suffix += str(chunk_value - 26)
+        
+        return id_15 + suffix
+    
     def connect(self):
         """Establish connection to Salesforce"""
         try:
@@ -165,7 +187,7 @@ class SalesforceService:
             # Query for specific ZoomInfo fields and additional enrichment data
             query = """
             SELECT Id, Email, First_Channel__c, 
-                   SegmentName__r.Name, LS_Company_Size_Range__c, Website, 
+                   SegmentName__r.Name, LS_Company_Size_Range__c, Website, Company,
                    ZI_Website__c, ZI_Company_Name__c, ZI_Employees__c
             FROM Lead 
             WHERE Id = '{}'
@@ -201,7 +223,7 @@ class SalesforceService:
             # Base query with ZoomInfo fields and additional enrichment data
             base_query = """
             SELECT Id, Email, First_Channel__c, 
-                   SegmentName__r.Name, LS_Company_Size_Range__c, Website, 
+                   SegmentName__r.Name, LS_Company_Size_Range__c, Website, Company,
                    ZI_Website__c, ZI_Company_Name__c, ZI_Employees__c
             FROM Lead
             """
@@ -521,11 +543,19 @@ class SalesforceService:
     def _analyze_lead_batch(self, lead_ids, include_details=True):
         """Analyze a batch of leads by their IDs"""
         try:
+            # Convert all Lead IDs to 18-character format for querying
+            query_lead_ids = []
+            for lid in lead_ids:
+                if len(str(lid).strip()) == 15:
+                    query_lead_ids.append(self._convert_15_to_18_char_id(str(lid).strip()))
+                else:
+                    query_lead_ids.append(str(lid).strip())
+            
             # Build batch query for all lead IDs
-            ids_string = "', '".join(lead_ids)
+            ids_string = "', '".join(query_lead_ids)
             batch_query = f"""
             SELECT Id, Email, First_Channel__c, 
-                   SegmentName__r.Name, LS_Company_Size_Range__c, Website, 
+                   SegmentName__r.Name, LS_Company_Size_Range__c, Website, Company,
                    ZI_Website__c, ZI_Company_Name__c, ZI_Employees__c
             FROM Lead 
             WHERE Id IN ('{ids_string}')
@@ -570,23 +600,78 @@ class SalesforceService:
             if not lead_ids:
                 return {'valid_lead_ids': [], 'invalid_lead_ids': []}, "No Lead IDs provided"
             
-            # Query Salesforce to check which Lead IDs exist
-            ids_string = "', '".join(lead_ids)
-            validation_query = f"SELECT Id FROM Lead WHERE Id IN ('{ids_string}')"
+
             
-            assert self.sf is not None  # Type hint for linter
-            result = self.sf.query(validation_query)
+            # Clean and validate Lead ID format first
+            cleaned_lead_ids = []
+            format_invalid_ids = []
+            id_mapping = {}  # Maps original ID to cleaned ID for response
             
-            # Extract valid Lead IDs from query result
-            valid_lead_ids = [record['Id'] for record in result['records']]
+            for lid in lead_ids:
+                lid_str = str(lid).strip()
+                # Basic Lead ID format validation (15 or 18 characters, starts with 00Q)
+                if len(lid_str) in [15, 18] and lid_str.startswith('00Q'):
+                    # Convert 15-char IDs to 18-char for consistent querying
+                    if len(lid_str) == 15:
+                        converted_id = self._convert_15_to_18_char_id(lid_str)
+                        cleaned_lead_ids.append(converted_id)
+                        id_mapping[converted_id] = lid_str  # Remember original format
+                    else:
+                        cleaned_lead_ids.append(lid_str)
+                        id_mapping[lid_str] = lid_str
+                else:
+                    format_invalid_ids.append(lid_str)
             
-            # Find invalid Lead IDs by comparing with original list
-            invalid_lead_ids = [lid for lid in lead_ids if lid not in valid_lead_ids]
+            # If any Lead IDs have invalid format, return them as invalid
+            if format_invalid_ids:
+                print(f"🔍 Found {len(format_invalid_ids)} Lead IDs with invalid format: {format_invalid_ids}")
+            
+            # Query Salesforce to check which Lead IDs exist (only for format-valid IDs)
+            valid_lead_ids = []
+            sf_invalid_ids = []
+            
+            if cleaned_lead_ids:
+                # Process in batches to avoid SOQL query limits
+                batch_size = 200  # Salesforce IN clause limit
+                for i in range(0, len(cleaned_lead_ids), batch_size):
+                    batch = cleaned_lead_ids[i:i + batch_size]
+                    ids_string = "', '".join(batch)
+                    validation_query = f"SELECT Id FROM Lead WHERE Id IN ('{ids_string}')"
+                    
+                    assert self.sf is not None  # Type hint for linter
+                    result = self.sf.query(validation_query)
+                    
+                    # Extract valid Lead IDs from this batch (in 18-char format from Salesforce)
+                    batch_valid_18char = [record['Id'] for record in result['records']]
+                    
+                    # Convert back to original format for response
+                    for valid_18char in batch_valid_18char:
+                        original_format = id_mapping.get(valid_18char, valid_18char)
+                        valid_lead_ids.append(original_format)
+                    
+                    # Find invalid Lead IDs in this batch (return in original format)
+                    for clean_id in batch:
+                        if clean_id not in batch_valid_18char:
+                            original_format = id_mapping.get(clean_id, clean_id)
+                            sf_invalid_ids.append(original_format)
+            
+            # Combine all invalid Lead IDs (format issues + Salesforce not found)
+            all_invalid_ids = format_invalid_ids + sf_invalid_ids
+            
+            print(f"🔍 Lead ID validation results:")
+            print(f"   - Total provided: {len(lead_ids)}")
+            print(f"   - Format valid: {len(cleaned_lead_ids)}")
+            print(f"   - Format invalid: {len(format_invalid_ids)}")
+            print(f"   - Salesforce valid: {len(valid_lead_ids)}")
+            print(f"   - Salesforce invalid: {len(sf_invalid_ids)}")
+            print(f"   - 15-char conversions: {len([k for k, v in id_mapping.items() if len(v) == 15])}")
             
             return {
                 'valid_lead_ids': valid_lead_ids,
-                'invalid_lead_ids': invalid_lead_ids
-            }, f"Validated {len(valid_lead_ids)} valid and {len(invalid_lead_ids)} invalid Lead IDs"
+                'invalid_lead_ids': all_invalid_ids,
+                'format_invalid_count': len(format_invalid_ids),
+                'sf_invalid_count': len(sf_invalid_ids)
+            }, f"Validated {len(valid_lead_ids)} valid and {len(all_invalid_ids)} invalid Lead IDs"
             
         except Exception as e:
             return None, f"Error validating Lead IDs: {str(e)}"
