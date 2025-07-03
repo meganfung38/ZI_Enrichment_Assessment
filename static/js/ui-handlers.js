@@ -195,11 +195,14 @@ async function handleQueryFormSubmit(e) {
             leads.forEach((lead, index) => {
                 output += `Lead ${index + 1}: ${lead.Id}\n`;
                 output += `Email: ${lead.Email || 'N/A'}\n`;
-                output += `Company: ${lead.ZI_Company_Name__c || 'N/A'}\n`;
-                output += `Employees: ${lead.ZI_Employees__c || 'N/A'}\n`;
-                output += `Website: ${lead.Website || 'N/A'}\n`;
-                output += `ZI Website: ${lead.ZI_Website__c || 'N/A'}\n`;
+                output += `First Channel: ${lead.First_Channel__c || 'N/A'}\n`;
                 output += `Segment: ${lead.SegmentName || 'N/A'}\n`;
+                output += `Company Size Range: ${lead.LS_Company_Size_Range__c || 'N/A'}\n`;
+                output += `Website: ${lead.Website || 'N/A'}\n`;
+                output += `ZI Company: ${lead.ZI_Company_Name__c || 'N/A'}\n`;
+                output += `ZI Employees: ${lead.ZI_Employees__c || 'N/A'}\n`;
+                output += `ZI Website: ${lead.ZI_Website__c || 'N/A'}\n`;
+                output += `Email Domain: ${lead.email_domain || 'N/A'}\n`;
                 output += `Not in TAM: ${lead.not_in_TAM ? 'Yes' : 'No'}\n`;
                 output += `Suspicious Enrichment: ${lead.suspicious_enrichment ? 'Yes' : 'No'}\n`;
                 
@@ -340,11 +343,14 @@ async function handleConfidenceFormSubmit(e) {
             output += `🔍 Lead Details:\n${'='.repeat(30)}\n`;
             output += `Lead ID: ${lead.Id}\n`;
             output += `Email: ${lead.Email || 'N/A'}\n`;
-            output += `Company: ${lead.ZI_Company_Name__c || 'N/A'}\n`;
-            output += `Employees: ${lead.ZI_Employees__c || 'N/A'}\n`;
+            output += `First Channel: ${lead.First_Channel__c || 'N/A'}\n`;
+            output += `Segment: ${lead.SegmentName || 'N/A'}\n`;
+            output += `Company Size Range: ${lead.LS_Company_Size_Range__c || 'N/A'}\n`;
             output += `Website: ${lead.Website || 'N/A'}\n`;
+            output += `ZI Company: ${lead.ZI_Company_Name__c || 'N/A'}\n`;
+            output += `ZI Employees: ${lead.ZI_Employees__c || 'N/A'}\n`;
             output += `ZI Website: ${lead.ZI_Website__c || 'N/A'}\n`;
-            output += `Segment: ${lead.SegmentName || 'N/A'}\n\n`;
+            output += `Email Domain: ${lead.email_domain || 'N/A'}\n\n`;
             
             output += `🚩 Quality Flags:\n`;
             output += `Not in TAM: ${lead.not_in_TAM ? 'Yes' : 'No'}\n`;
@@ -701,8 +707,14 @@ async function handleAnalyzeExcel(e) {
             leads.forEach((lead, index) => {
                 output += `Lead ${index + 1}: ${lead.Id}\n`;
                 output += `Email: ${lead.Email || 'N/A'}\n`;
-                output += `Company: ${lead.ZI_Company_Name__c || 'N/A'}\n`;
-                output += `Employees: ${lead.ZI_Employees__c || 'N/A'}\n`;
+                output += `First Channel: ${lead.First_Channel__c || 'N/A'}\n`;
+                output += `Segment: ${lead.SegmentName || 'N/A'}\n`;
+                output += `Company Size Range: ${lead.LS_Company_Size_Range__c || 'N/A'}\n`;
+                output += `Website: ${lead.Website || 'N/A'}\n`;
+                output += `ZI Company: ${lead.ZI_Company_Name__c || 'N/A'}\n`;
+                output += `ZI Employees: ${lead.ZI_Employees__c || 'N/A'}\n`;
+                output += `ZI Website: ${lead.ZI_Website__c || 'N/A'}\n`;
+                output += `Email Domain: ${lead.email_domain || 'N/A'}\n`;
                 output += `Not in TAM: ${lead.not_in_TAM ? 'Yes' : 'No'}\n`;
                 output += `Suspicious Enrichment: ${lead.suspicious_enrichment ? 'Yes' : 'No'}\n`;
                 
