@@ -11,19 +11,19 @@ LEAD_QA_SYSTEM_PROMPT = """You are a data quality assistant. Your job is to eval
 
 ## 1 Here is the lead data you are receiving: 
 
-| Field  | Description  | Source | Trust Level  | How to Use  |
-| :---- | :---- | :---- | :---- | :---- |
-| Email  | The lead's email address | Provided by the lead directly | Trusted | Use to infer company identity  |
-| First_Channel__c | Channel lead came in through  | Internal System  | Trusted | Use as context to determine if lead data was populated |
-| SegmentName | Which sales segment the lead belongs to | Specified by lead themselves or sales rep working with the lead | Trusted but potentially inaccurate | Use to compare against enriched data |
-| LS_Company_Size_Range__c | Internal guess at company size range | Specified by lead themselves or sales rep working with lead | Trusted but potentially inaccurate | Use to compare against enriched data |
-| Website  | The company's website | Specified by the lead themselves or a sales rep working with the lead  | Trusted but potentially inaccurate | Use to compare against ZI_Website__c and ZI_Company__c  |
-| ZI_Website__c | The company's website | Enriched by ZoomInfo | To be validated | Compare the email_domain, Website, and  ZI_Company_Name__c for consistency  |
-| ZI_Company_Name__c | Company name  | Enriched by ZoomInfo  | To be validated | Compare against email_domain, Website, and ZI_Website__c for consistency |
-| ZI_Employees__c | Employee count | Enriched by ZoomInfo | To be validated  | Compare against SegmentName and LS_Company_Size_Range__c for consistency and use to assess whether company is "large"  |
-| not_in_TAM | This lead is supposedly associated with a large company (>= 100 employees), but enrichment has not identified a company associated with the lead and is not found in RingCentral's TAM dataset. This suggests enrichment may be incomplete or mismatched.  | Quality flag computed internally  | Trusted | Negative Indicator |
-| suspicious_enrichment | The lead has a company name and a reported employee count >= 100, but lacks a website and uses a personal (free) email domain. This raises concern about the authenticity of the enriched company match.  | Quality flag computed internally  | Trusted | Strong Negative Indicator |
-| email_domain  | The lead's email domain | Computed internally  | Trusted | Use to compare against Website and ZI_Company_Name__c |
+| Field  | Data Type | Description  | Source | Trust Level  | How to Use  |
+| :---- | :---- | :---- | :---- | :---- | :---- |
+| Email  | String  | The lead's email address | Provided by the lead directly | Trusted | Use to infer company identity  |
+| First_Channel__c | String | Channel lead came in through  | Internal System  | Trusted | Use as context to determine if lead data was populated |
+| SegmentName | String  | Which sales segment the lead belongs to | Specified by lead themselves or sales rep working with the lead | Trusted but potentially inaccurate | Use to compare against enriched data |
+| LS_Company_Size_Range__c | String representing a range (eg. 10-100) | Internal guess at company size range | Specified by lead themselves or sales rep working with lead | Trusted but potentially inaccurate | Use to compare against enriched data |
+| Website  | String  | The company's website | Specified by the lead themselves or a sales rep working with the lead  | Trusted but potentially inaccurate | Use to compare against ZI_Website__c and ZI_Company__c  |
+| ZI_Website__c | String | The company's website | Enriched by ZoomInfo | To be validated | Compare the email_domain, Website, and  ZI_Company_Name__c for consistency  |
+| ZI_Company_Name__c | String  | Company name  | Enriched by ZoomInfo  | To be validated | Compare against email_domain, Website, and ZI_Website__c for consistency |
+| ZI_Employees__c | Integer | Employee count | Enriched by ZoomInfo | To be validated  | Compare against SegmentName and LS_Company_Size_Range__c for consistency and use to assess whether company is "large"  |
+| not_in_TAM | Boolean  | This lead is supposedly associated with a large company (>= 100 employees), but enrichment has not identified a company associated with the lead and is not found in RingCentral's TAM dataset. This suggests enrichment may be incomplete or mismatched.  | Quality flag computed internally  | Trusted | Negative Indicator |
+| suspicious_enrichment | Boolean  | The lead has a company name and a reported employee count >= 100, but lacks a website and uses a personal (free) email domain. This raises concern about the authenticity of the enriched company match.  | Quality flag computed internally  | Trusted | Strong Negative Indicator |
+| email_domain  | String | The lead's email domain | Computed internally  | Trusted | Use to compare against Website and ZI_Company_Name__c |
 
 ## 2 Validation– Is the Enrichment Believable? 
 
@@ -40,7 +40,7 @@ LEAD_QA_SYSTEM_PROMPT = """You are a data quality assistant. Your job is to eval
 
 ## 3 Inference and Correction– Can anything be fixed?
 
-1. Using the trusted fields (Email, email_domain, etc.) and external sources (Clearbit, LinkedIn, Hunter.io MX lookup, OpenCorporates), infer the company name, primary website, and employee range associated with the lead.     
+1. Using the trusted fields (Email, email_domain, etc.) and external sources (Clearbit, LinkedIn, Hunter.io MX lookup, OpenCorporates), infer the company name, primary website, and employee range associated with the lead, mapped to their respective data types.     
 2. CORRECTIONS (high confidence fixes for conflicting data):   
 * Only add to `corrections` if a ZoomInfo field CONFLICTS with trusted internal data or external sources       
 * URL Formatting Rule: Do NOT correct URL formatting differences for the SAME domain:  
