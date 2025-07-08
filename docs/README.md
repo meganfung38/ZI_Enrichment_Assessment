@@ -52,6 +52,7 @@ Access the web interface at `http://localhost:5000/ui`
 - Intelligent corrections and inferences based on contextual analysis
 - Advanced redundancy validation to prevent duplicate suggestions
 - Contextual prompt engineering for accurate assessments
+- Free email domain filtering and website accessibility validation
 
 **ExcelService** (`services/excel_service.py`)
 - Professional report generation with RingCentral branding and color-coding
@@ -123,8 +124,8 @@ The system analyzes 11+ core fields for comprehensive cross-validation:
 ### AI Assessment Output
 - `confidence_score` - Overall reliability rating (0-100)
 - `explanation_bullets` - Clear explanations with emoji indicators
-- `corrections` - High-confidence fixes (≥80% confidence)
-- `inferences` - Lower-confidence suggestions (≥40% confidence)
+- `corrections` - High-confidence fixes (≥80% confidence) with website validation
+- `inferences` - Lower-confidence suggestions (≥40% confidence) with accessibility checks
 
 ## Analysis Methods
 
@@ -220,6 +221,8 @@ All endpoints return standardized JSON:
 - **Redundancy Validation**: Prevents duplicate corrections and inferences
 - **Context-Aware Scoring**: Uses segment and channel data for accurate assessment
 - **Smart Company Matching**: Detects when ZoomInfo and lead company names are equivalent
+- **Data Quality Filtering**: Blocks free email domains and validates website accessibility
+- **Enhanced Data Types**: Rejects vague employee counts and enforces proper formatting
 
 ### Robust Data Handling
 - **Lead ID Conversion**: Automatic 15 ↔ 18 character Salesforce ID handling

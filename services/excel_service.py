@@ -423,6 +423,14 @@ class ExcelService:
             if len(unique_ids) > 5:
                 print(f"   ... and {len(unique_ids) - 5} more")
             
+            # Calculate summary statistics from analysis results
+            leads_analyzed = len(df_original)
+            leads_with_issues = 0
+            not_in_tam_count = 0
+            suspicious_enrichment_count = 0
+            total_confidence_score = 0
+            successful_ai_assessments = 0
+            
             # Add analysis columns
             analysis_columns = {
                 'AI_Confidence_Score': [],
@@ -468,6 +476,23 @@ class ExcelService:
                 # Handle case where confidence_assessment might be None
                 if confidence_assessment is None:
                     confidence_assessment = {}
+                
+                # Update summary statistics
+                if analysis:
+                    # Count quality issues
+                    if analysis.get('not_in_TAM') or analysis.get('suspicious_enrichment'):
+                        leads_with_issues += 1
+                    if analysis.get('not_in_TAM'):
+                        not_in_tam_count += 1
+                    if analysis.get('suspicious_enrichment'):
+                        suspicious_enrichment_count += 1
+                    
+                    # Count successful AI assessments
+                    if (confidence_assessment and 
+                        isinstance(confidence_assessment.get('confidence_score'), (int, float)) and 
+                        confidence_assessment.get('confidence_score') is not None):
+                        total_confidence_score += confidence_assessment.get('confidence_score', 0)
+                        successful_ai_assessments += 1
                 
                 # Confidence Score
                 confidence_score = confidence_assessment.get('confidence_score', '') if confidence_assessment else ''
@@ -526,6 +551,19 @@ class ExcelService:
             for col_name, col_data in analysis_columns.items():
                 df_original[col_name] = col_data
             
+            # Create summary data for the summary section
+            avg_confidence_score = (total_confidence_score / successful_ai_assessments) if successful_ai_assessments > 0 else 0
+            summary_data = {
+                'leads_analyzed': leads_analyzed,
+                'leads_with_issues': leads_with_issues,
+                'issue_percentage': round((leads_with_issues / leads_analyzed) * 100, 2) if leads_analyzed > 0 else 0,
+                'avg_confidence_score': round(avg_confidence_score, 1),
+                'not_in_tam_count': not_in_tam_count,
+                'suspicious_enrichment_count': suspicious_enrichment_count,
+                'ai_assessments_successful': successful_ai_assessments,
+                'ai_assessments_failed': leads_analyzed - successful_ai_assessments
+            }
+            
             # Create Excel file with formatting
             wb = Workbook()
             ws = wb.active
@@ -533,18 +571,25 @@ class ExcelService:
             ws.title = "Analysis Results"
             
             # Add title with RingCentral styling
-            ws.merge_cells(f'A1:{get_column_letter(len(df_original.columns))}1')
-            ws['A1'] = "Excel Upload Analysis Results"
-            ws['A1'].font = self.title_font
-            ws['A1'].alignment = self.center_alignment
+            current_row = 1
+            ws.merge_cells(f'A{current_row}:{get_column_letter(len(df_original.columns))}{current_row}')
+            ws[f'A{current_row}'] = "Excel Upload Analysis Results"
+            ws[f'A{current_row}'].font = self.title_font
+            ws[f'A{current_row}'].alignment = self.center_alignment
+            current_row += 1
             
             # Add timestamp
-            ws.merge_cells(f'A2:{get_column_letter(len(df_original.columns))}2')
-            ws['A2'] = f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-            ws['A2'].alignment = self.center_alignment
+            ws.merge_cells(f'A{current_row}:{get_column_letter(len(df_original.columns))}{current_row}')
+            ws[f'A{current_row}'] = f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            ws[f'A{current_row}'].alignment = self.center_alignment
+            current_row += 2
             
-            # Add headers (row 4)
-            header_row = 4
+            # Add summary section
+            current_row = self._add_summary_section(ws, summary_data, None, current_row)
+            current_row += 1
+            
+            # Add headers 
+            header_row = current_row
             for col_idx, header in enumerate(df_original.columns, 1):
                 cell = ws.cell(row=header_row, column=col_idx, value=header)
                 cell.font = self.header_font
@@ -552,8 +597,10 @@ class ExcelService:
                 cell.alignment = self.center_alignment
                 cell.border = self.border
             
+            current_row += 1
+            
             # Add data rows
-            for row_idx, (_, row) in enumerate(df_original.iterrows(), header_row + 1):
+            for row_idx, (_, row) in enumerate(df_original.iterrows(), current_row):
                 for col_idx, value in enumerate(row, 1):
                     cell = ws.cell(row=row_idx, column=col_idx, value=value)
                     cell.border = self.border

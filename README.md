@@ -25,12 +25,15 @@ Access the web interface at `http://localhost:5000/ui`
 - Intelligent corrections and inferences with advanced redundancy validation
 - Context-aware analysis using sales segment and channel data
 - Smart duplicate detection to prevent redundant suggestions
+- Free email domain validation (blocks gmail.com, yahoo.com, etc. as company websites)
+- Website accessibility verification for corrected/inferred URLs
 
 🔍 **Comprehensive Data Analysis**
 - 11+ lead fields including dual website/company sources and employee counts
 - Automated quality flags (`not_in_TAM`, `suspicious_enrichment`)
 - Cross-validation between ZoomInfo data and internal estimates
 - Robust Lead ID handling (15 ↔ 18 character conversion)
+- Enhanced data type validation (rejects vague employee counts like "Small", "Large")
 
 📊 **Three Analysis Methods**
 - **Single Lead Assessment**: Individual confidence scoring with detailed explanations

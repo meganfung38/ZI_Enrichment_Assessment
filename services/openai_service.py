@@ -1,6 +1,9 @@
 import openai
 from config.config import Config
 import json
+import requests
+from urllib.parse import urlparse
+import socket
 
 # configure openAI access 
 openai.api_key = Config.OPENAI_API_KEY
@@ -17,7 +20,7 @@ LEAD_QA_SYSTEM_PROMPT = """You are a data quality assistant. Your job is to eval
 | First_Channel__c | String | Channel lead came in through  | Internal System  | Trusted | Use as context to determine if lead data was populated |
 | SegmentName | String  | Which sales segment the lead belongs to | Specified by lead themselves or sales rep working with the lead | Trusted but potentially inaccurate | Use to compare against enriched data |
 | Website  | String  | The company's website | Specified by the lead themselves or a sales rep working with the lead  | Trusted but potentially inaccurate | Use to compare against ZI_Website__c and ZI_Company__c  |
-| Company | String | Company name | Specified by the lead themselves or a sales rep working with the lead | Trusted by potentially inaccurate | Use to compare against ZI_Website__c and ZI_Company__c |
+| Company | String | Company name | Specified by the lead themselves or a sales rep working with the lead | Trusted but potentially inaccurate | Use to compare against ZI_Website__c and ZI_Company__c |
 | LS_Company_Size_Range__c | String representing a range (eg. 10-100) | Internal guess at company size range | Specified by lead themselves or sales rep working with lead | Trusted but potentially inaccurate | Use to compare against enriched data |
 | ZI_Website__c | String | The company's website | Enriched by ZoomInfo | To be validated | Compare the email_domain, Website, and  ZI_Company_Name__c for consistency  |
 | ZI_Company_Name__c | String  | Company name  | Enriched by ZoomInfo  | To be validated | Compare against email_domain, Website, and ZI_Website__c for consistency |
@@ -32,7 +35,7 @@ LEAD_QA_SYSTEM_PROMPT = """You are a data quality assistant. Your job is to eval
 
 | Heuristic  | PASS (✅)	 | CAUTION (⚠️)	 | FAIL (❌) |
 | :---- | :---- | :---- | :---- |
-| Email domain, website, and company are consistent | Corporate domain matches: Company or ZI_Company_Name__c  AND  Website or ZI_Website__c | Partial match  | Obvious mismatch or free email domain with enterprise claim  |
+| Email domain, website, and company are consistent | Verify that Company is consistent with the lead's email domain Confirm that the internal Website and/ or ZI_Website__c logically belong to the Company and align with the email domain  If the internal Website and/or ZI_Website__c do not clearly map to the Company, check whether they instead align with the ZI_Company__c and still agree with the email domain | Partial match  | Obvious mismatch or free email domain with enterprise claim  |
 | Employee count sanity | ZI_Employees__c within claimed segment size (use SegmentName, LS_Company_Size_Range__c if present) and external sources confirm that Company contains the specified number of employees.  | Minor discrepancy (+/- segment)  | Major discrepancy (>= 2 segments) |
 | Large company completeness (ZI_Employees__c >= 100)  | Website or ZI_Website__c populated  Company or ZI_Company_Name__c populated  Email domain is corporate | Some gaps in enrichment | Very sparsely populated enrichment |
 | Quality flags (not_in_TAM and suspicious_enrichment) | Both are false   | One or more is true |  |
@@ -41,31 +44,63 @@ LEAD_QA_SYSTEM_PROMPT = """You are a data quality assistant. Your job is to eval
 
 ## 3 Inference and Correction– Can anything be fixed?
 
-1. Using the trusted fields (Email, email_domain, etc.) and external sources (Clearbit, LinkedIn, Hunter.io MX lookup, OpenCorporates), infer the company name, primary website, and employee range associated with the lead, mapped to their respective data types.     
-2. CORRECTIONS (high confidence fixes for conflicting data):   
-* Only add to `corrections` if a ZoomInfo field CONFLICTS with trusted internal data or external sources       
-* URL Formatting Rule: Do NOT correct URL formatting differences for the SAME domain:  
+1. Use trusted internal fields (e.g. Email, email domain, Company, Website) and external source (e.g. Clearbit, LinkedIn, Hunter.io, OpenCorporates, etc.) to validate, infer, or correct ZoomInfo enriched fields (ZI_Company_Name__c, ZI_Website__c, ZI_Employees__c).  
+2. Shared Validation Rules (Apply to both Corrections and Inferences):   
+* Proactively search external sources using trusted lead fields to discover missing/ incorrect data:   
+  * If Company is populated, search for an official website  
+    * Search query: "<Company>" + ("official website" OR ".com" or ".co" OR ".net")   
+    * Collect three distinct candidate URLs that contain the company name OR are returned as the "website" value in external sources   
+  * If Website is populated, validate its ownership via LinkedIn or Clearbit   
+  * If Email is from a corporate domain, reverse lookup the domain for company info  
+* Do not use free/personal email domains as ZI_Website__c values  
+* Never rely solely on the email domain to infer or correct ZI_Website__c unless:   
+  * The domain resolves to a valid corporate website (HTTP 200/301)   
+  * The domain is linked to the same organization as Company or ZI_Company_Name__c  
+* URL Formatting Rule: Do NOT correct/infer URL formatting differences for the SAME domain:  
   * ❌ "example.com" → "https://example.com" (same domain)  
   * ❌ "www.site.org/" → "site.org" (same domain)  
-* DO make corrections for meaningful conflicts:  
+  * ❌ If Website="example.com" exists, do NOT infer ZI_Website__c="https://example.com"  
+* Normalize domains for comparison by extracting the core domain (strip http, https, www, and paths)  
+* Data types matter: all corrections and inferences must match the expected data type of the field  
+  * ZI_Company_Name__c, ZI_Website__c: String   
+  * ZI_Employees__c: Integer   
+    * Do not return vague strings like "Small", "Large", "Mid-size" or "Unknown". These are invalid data types and must be rejected  
+    * If an exact number is unavailable, infer an approximate range midpoint based on the external validation (e.g. if external sources indicate 10-50 employees, infer 30)
+3. CORRECTIONS (high confidence fixes for conflicting data):   
+* Only add to `corrections` if:  
+  * The ZoomInfo enriched value CONFLICTS with trusted lead data AND  
+  * The correction is confirmed by external sources  
+  * The corrected value adheres to the correct data type       
+* Examples of corrections for meaningful conflicts:  
   * ✅ Wrong company name: "Runway Post" → "Virtuoso DesignBuild" (based on email domain)  
   * ✅ Drastically different employee count based on external sources  
   *  ✅ Wrong website domain: "facebook.com" → "virtuosodesignbuild.com" (if supported by email/external data)  
-3. INFERENCES (Fill in MISSING data with high confidence):      
-* Only add to `inferences` for ZoomInfo fields that are NULL/empty AND you have >= 0.40 confidence      
-* URL Formatting Rule: Do NOT infer URL variations of the SAME domain:  
-  * ❌ If Website="example.com" exists, do NOT infer ZI_Website__c="https://example.com"  
-* DO make inferences for different domains/missing data:  
+4. INFERENCES (Fill in MISSING data with verifiable, high confidence information):      
+* Only add to `inferences` for ZoomInfo fields that are:  
+  * NULL/empty AND   
+  * you have >= 0.40 confidence AND   
+  * The inferred value is supported by   
+    * Lead provided fields (e.g. Email, Company, Website) OR  
+    * External verification  
+  * The inferred value is cast to the correct data type for the field  
+* Examples of inferences for different domains/missing data:  
   * ✅ If Website="facebook.com/pages/..." and email="user@company.com", infer ZI_Website__c="company.com"  
   *  ✅ If ZI_Company_Name__c is null and email="user@company.com", infer company name  
-  *  ✅ If ZI_Employees__c is null and external sources suggest a number, infer it  
-* Domain Extraction Check: Extract core domain (remove protocol/www/paths) and only avoid if core domains match  
-* VALIDATION EXAMPLES:  
-  * FORBIDDEN (same domain): Website="aoreed.com" → infer ZI_Website__c="https://aoreed.com"  
-  * ALLOWED (different domain): Website="facebook.com/pages/Company" → infer ZI_Website__c="company.com"   
-  * ALLOWED (missing data): ZI_Company_Name__c=null → infer "Company Name" from email domain  
-  * ALLOWED (conflicting data): ZI_Company_Name__c="Wrong Name" → correct to "Right Name" from email  
-4. Final Check: Ask "Is this the same core domain/company or genuinely different information?" Only avoid it if it's the same.
+  *  ✅ If ZI_Employees__c is null and external sources suggest a number, infer it
+
+Validation Examples
+
+| Example | Allowed?  | Why |
+| :---- | :---- | :---- |
+| Website="aoreed.com" → infer ZI_Website__c="https://aoreed.com" | ❌ | Formatting only change |
+| Website="facebook.com/pages/Company" → infer ZI_Website__c="company.com" if company.com actually exists | ✅ | Valid domain, externally verified |
+| Company = "vibrant travels" → infer ZI_Website__c = "vibranttravels.com" but vibranttravels.com does not exist | ❌ | Invalid domain, not externally verified |
+| ZI_Employees__c = null → infer "Large" | ❌ | Incorrect data type (should be an integer) |
+| ZI_Employees__c = null → infer 80 | ✅ | Correct data type (integer) and verified  |
+| ZI_Company_Name__c=null → infer "Company Name" from email domain | ✅ | Externally verified  |
+| ZI_Company_Name__c="Wrong Name" → correct to "Right Name" from email | ✅ | Externally verified |
+
+5. Final Check: Ask "Is this the same core domain/company or genuinely different information?" Only avoid it if it's the same.
 
 ## 4 Scoring– How Trustworthy is this record overall? 
 
@@ -163,6 +198,28 @@ def validate_and_clean_assessment(assessment, lead_data):
         
         return url if url else None
     
+    def is_free_email_domain(domain):
+        """Check if a domain is a free email provider"""
+        if not domain:
+            return False
+        
+        # Extract core domain for comparison
+        core_domain = extract_core_domain(domain)
+        if not core_domain:
+            return False
+        
+        # List of common free email domains
+        free_domains = {
+            'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'aol.com',
+            'icloud.com', 'live.com', 'msn.com', 'yahoo.co.uk', 'yahoo.ca',
+            'yahoo.com.au', 'googlemail.com', 'protonmail.com', 'mail.com',
+            'yandex.com', 'gmx.com', 'zoho.com', 'inbox.com', 'fastmail.com',
+            'tutanota.com', 'guerrillamail.com', '10minutemail.com', 'mailinator.com',
+            'tempmail.org', 'dispostable.com', 'throwaway.email'
+        }
+        
+        return core_domain in free_domains
+    
     def are_same_domain(url1, url2):
         """Check if two URLs represent the same domain"""
         domain1 = extract_core_domain(url1)
@@ -174,6 +231,54 @@ def validate_and_clean_assessment(assessment, lead_data):
         if not url:
             return None
         return str(url).strip().lower()
+    
+    def is_website_accessible(url):
+        """Check if a website URL is accessible"""
+        if not url:
+            return False, "No URL provided"
+        
+        # Normalize the URL
+        url = str(url).strip()
+        
+        # Add protocol if missing
+        if not url.startswith(('http://', 'https://')):
+            # Try HTTPS first, then HTTP
+            test_urls = [f'https://{url}', f'http://{url}']
+        else:
+            test_urls = [url]
+        
+        for test_url in test_urls:
+            try:
+                # Set a reasonable timeout
+                response = requests.head(test_url, timeout=5, allow_redirects=True)
+                
+                # Check if the response is successful (200-399 range)
+                if 200 <= response.status_code < 400:
+                    return True, f"HTTP {response.status_code}"
+                elif response.status_code == 403:
+                    # Some sites block HEAD requests but allow GET
+                    try:
+                        response = requests.get(test_url, timeout=5, allow_redirects=True)
+                        if 200 <= response.status_code < 400:
+                            return True, f"HTTP {response.status_code}"
+                    except:
+                        pass
+                        
+            except requests.exceptions.ConnectionError:
+                # Try to resolve the domain to check if it exists
+                try:
+                    parsed = urlparse(test_url)
+                    domain = parsed.netloc
+                    socket.gethostbyname(domain)
+                    return False, f"Domain exists but connection failed"
+                except socket.gaierror:
+                    continue  # Try next URL variant
+            except requests.exceptions.Timeout:
+                return False, "Connection timeout"
+            except requests.exceptions.RequestException as e:
+                continue  # Try next URL variant
+        
+        return False, "Website not accessible"
     
     # Get existing website and company values from lead data
     existing_websites = {
@@ -191,11 +296,24 @@ def validate_and_clean_assessment(assessment, lead_data):
         should_keep = True
         
         if field in ['Website', 'ZI_Website__c']:
-            # Check if this correction is just a formatting change of the same field
-            existing_value = existing_websites.get(field)
-            if existing_value and are_same_domain(existing_value, value):
+            # Check if this is a free email domain being used as a website
+            if field == 'ZI_Website__c' and is_free_email_domain(value):
                 should_keep = False
-                print(f"🧹 Removed redundant correction: {field} '{existing_value}' -> '{value}' (same domain)")
+                print(f"🚫 Removed invalid correction: {field} '{value}' (free email domain not allowed for website)")
+            
+            # Check if ZI_Website__c is accessible
+            if should_keep and field == 'ZI_Website__c':
+                is_accessible, status_msg = is_website_accessible(value)
+                if not is_accessible:
+                    should_keep = False
+                    print(f"🚫 Removed invalid correction: {field} '{value}' (website not accessible: {status_msg})")
+            
+            # Check if this correction is just a formatting change of the same field
+            if should_keep:
+                existing_value = existing_websites.get(field)
+                if existing_value and are_same_domain(existing_value, value):
+                    should_keep = False
+                    print(f"🧹 Removed redundant correction: {field} '{existing_value}' -> '{value}' (same domain)")
             
             # Check for exact string matches (case-insensitive)
             if should_keep and existing_value:
@@ -249,19 +367,32 @@ def validate_and_clean_assessment(assessment, lead_data):
                 print(f"🧹 Removed redundant inference: {field} '{value}' (identical to correction)")
         
         if should_keep and field in ['Website', 'ZI_Website__c']:
+            # Check if this is a free email domain being used as a website
+            if field == 'ZI_Website__c' and is_free_email_domain(value):
+                should_keep = False
+                print(f"🚫 Removed invalid inference: {field} '{value}' (free email domain not allowed for website)")
+            
+            # Check if ZI_Website__c is accessible
+            if should_keep and field == 'ZI_Website__c':
+                is_accessible, status_msg = is_website_accessible(value)
+                if not is_accessible:
+                    should_keep = False
+                    print(f"🚫 Removed invalid inference: {field} '{value}' (website not accessible: {status_msg})")
+            
             # Check if any existing website field has the same domain or exact match
-            for existing_field, existing_value in existing_websites.items():
-                if existing_value:
-                    # Check domain match
-                    if are_same_domain(existing_value, value):
-                        should_keep = False
-                        print(f"🧹 Removed redundant inference: {field} '{value}' (same domain as {existing_field}: '{existing_value}')")
-                        break
-                    # Check exact string match
-                    if normalize_url_for_comparison(existing_value) == normalize_url_for_comparison(value):
-                        should_keep = False
-                        print(f"🧹 Removed redundant inference: {field} '{value}' (exact match with {existing_field}: '{existing_value}')")
-                        break
+            if should_keep:
+                for existing_field, existing_value in existing_websites.items():
+                    if existing_value:
+                        # Check domain match
+                        if are_same_domain(existing_value, value):
+                            should_keep = False
+                            print(f"🧹 Removed redundant inference: {field} '{value}' (same domain as {existing_field}: '{existing_value}')")
+                            break
+                        # Check exact string match
+                        if normalize_url_for_comparison(existing_value) == normalize_url_for_comparison(value):
+                            should_keep = False
+                            print(f"🧹 Removed redundant inference: {field} '{value}' (exact match with {existing_field}: '{existing_value}')")
+                            break
         elif should_keep and field in ['Company', 'ZI_Company_Name__c']:
             # Check if any existing company field has the same name
             for existing_field, existing_value in existing_companies.items():
