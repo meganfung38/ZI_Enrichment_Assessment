@@ -37,6 +37,10 @@ python app.py
 
 Access the web interface at `http://localhost:5000/ui`
 
+## Demo
+
+📹 **[Watch the Complete Demo](ZoomInfo_Enrichment_Demo.webm)** - See the API in action with step-by-step usage examples
+
 ## Architecture
 
 ### Core Services
@@ -241,5 +245,7 @@ All endpoints return standardized JSON:
 
 ---
 
-For project overview and requirements, see [project_breakdown.md](project_breakdown.md)  
-For AI methodology details, see [lead_data_interpretation.md](lead_data_interpretation.md) 
+**Additional Resources:**
+- **[API Demo Video](ZoomInfo_Enrichment_Demo.webm)** - Complete walkthrough and usage examples
+- **[Project Overview](project_breakdown.md)** - Requirements and specifications
+- **[AI Methodology](lead_data_interpretation.md)** - Scoring and assessment details 

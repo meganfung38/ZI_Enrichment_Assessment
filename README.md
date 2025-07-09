@@ -18,6 +18,10 @@ python app.py
 
 Access the web interface at `http://localhost:5000/ui`
 
+## Demo
+
+📹 **[Watch the API Demo](docs/ZoomInfo_Enrichment_Demo.webm)** - Complete walkthrough of the tool's features and workflow
+
 ## Key Features
 
 🧠 **AI-Powered Assessment**
@@ -176,6 +180,7 @@ curl -X POST http://localhost:5000/leads/analyze-query \
 
 ## Documentation
 
+- **[API Demo Video](docs/ZoomInfo_Enrichment_Demo.webm)** - Complete walkthrough and usage examples
 - **[Technical Documentation](docs/README.md)** - Complete API reference and setup
 - **[Project Specifications](docs/project_breakdown.md)** - Requirements and architecture
 - **[AI Methodology](docs/lead_data_interpretation.md)** - Scoring and assessment details  
