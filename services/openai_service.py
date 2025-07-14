@@ -1,5 +1,5 @@
 import openai
-from config.config import Config
+from config.config import Config, BAD_EMAIL_DOMAINS
 import json
 import requests
 from urllib.parse import urlparse
@@ -208,17 +208,7 @@ def validate_and_clean_assessment(assessment, lead_data):
         if not core_domain:
             return False
         
-        # List of common free email domains
-        free_domains = {
-            'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'aol.com',
-            'icloud.com', 'live.com', 'msn.com', 'yahoo.co.uk', 'yahoo.ca',
-            'yahoo.com.au', 'googlemail.com', 'protonmail.com', 'mail.com',
-            'yandex.com', 'gmx.com', 'zoho.com', 'inbox.com', 'fastmail.com',
-            'tutanota.com', 'guerrillamail.com', '10minutemail.com', 'mailinator.com',
-            'tempmail.org', 'dispostable.com', 'throwaway.email'
-        }
-        
-        return core_domain in free_domains
+        return core_domain in BAD_EMAIL_DOMAINS
     
     def are_same_domain(url1, url2):
         """Check if two URLs represent the same domain"""

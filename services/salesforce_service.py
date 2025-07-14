@@ -1,17 +1,10 @@
-from simple_salesforce import Salesforce
-from config.config import Config
+from simple_salesforce.api import Salesforce
+from config.config import Config, BAD_EMAIL_DOMAINS
 from typing import Optional
 
 
 class SalesforceService:
     """Service class for handling Salesforce operations"""
-    
-    # Free email domains to check for suspicious enrichment
-    FREE_EMAIL_DOMAINS = {
-        'gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'icloud.com',
-        'protonmail.com', 'zoho.com', 'aol.com', 'live.com', 'msn.com',
-        'ymail.com', 'rocketmail.com', 'me.com', 'mac.com'
-    }
     
     def __init__(self):
         self.sf: Optional[Salesforce] = None
@@ -100,7 +93,7 @@ class SalesforceService:
             return False
         try:
             domain = email.split('@')[1].lower()
-            return bool(domain in self.FREE_EMAIL_DOMAINS)
+            return bool(domain in BAD_EMAIL_DOMAINS)
         except (IndexError, AttributeError):
             return False
     
