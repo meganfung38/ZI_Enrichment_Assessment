@@ -106,7 +106,7 @@ class ExcelService:
         # Summary statistics
         summary_items = [
             ("Total Lead IDs", summary_data.get('total_lead_ids', 0)),
-            ("Valid Lead IDs", summary_data.get('leads_analyzed', 0)),
+            ("Valid Lead IDs", summary_data.get('valid_lead_ids', 0)),
             ("Invalid Lead IDs", summary_data.get('invalid_lead_ids_count', 0)),
             ("Leads with Issues", summary_data.get('leads_with_issues', 0)),
             ("Issue Percentage", f"{summary_data.get('issue_percentage', 0)}%"),
@@ -616,37 +616,52 @@ class ExcelService:
             df_display = df_original.drop(columns=['_is_invalid_lead_id'])
             
             # Create summary data for the summary section
-            # Always use Salesforce service summary data as the source of truth
+            # Calculate correct metrics based on the user's requirements
+            total_lead_ids = len(df_original)  # Total rows in input Excel file
+            invalid_lead_ids_count = len(invalid_lead_ids) if invalid_lead_ids else 0
+            valid_lead_ids_count = total_lead_ids - invalid_lead_ids_count  # Valid Lead IDs from validation step
+            
+            # Get Salesforce summary data for analysis metrics
             if hasattr(analysis_results, 'get') and isinstance(analysis_results, dict) and 'summary' in analysis_results:
-                # Use summary data from Salesforce service (source of truth)
                 sf_summary = analysis_results['summary']
+                
+                # AI assessments successful = leads that were successfully analyzed (valid Lead IDs with successful AI)
+                ai_assessments_successful = sf_summary.get('ai_assessments_successful', 0)
+                
+                # AI assessments failed = invalid Lead IDs + AI processing failures
+                ai_assessments_failed = invalid_lead_ids_count + (valid_lead_ids_count - ai_assessments_successful)
+                
                 summary_data = {
-                    'leads_analyzed': sf_summary.get('leads_analyzed', 0),
-                    'leads_with_issues': sf_summary.get('leads_with_issues', 0),
+                    'total_lead_ids': total_lead_ids,  # Total rows in input Excel file
+                    'valid_lead_ids': valid_lead_ids_count,  # Valid Lead IDs from validation step
+                    'invalid_lead_ids_count': invalid_lead_ids_count,  # Invalid Lead IDs from validation step
+                    'leads_with_issues': sf_summary.get('leads_with_issues', 0),  # Quality issues in valid leads
                     'issue_percentage': sf_summary.get('issue_percentage', 0),
-                    'avg_confidence_score': sf_summary.get('avg_confidence_score', 0),
+                    'avg_confidence_score': sf_summary.get('avg_confidence_score', 0),  # Average of successful AI assessments
                     'not_in_tam_count': sf_summary.get('not_in_tam_count', 0),
                     'suspicious_enrichment_count': sf_summary.get('suspicious_enrichment_count', 0),
-                    'ai_assessments_successful': sf_summary.get('ai_assessments_successful', 0),
-                    'ai_assessments_failed': sf_summary.get('ai_assessments_failed', 0),
-                    'invalid_lead_ids_count': len(invalid_lead_ids) if invalid_lead_ids else 0,
-                    'total_lead_ids': len(df_original)  # Total from original Excel file
+                    'ai_assessments_successful': ai_assessments_successful,  # Successfully analyzed leads
+                    'ai_assessments_failed': ai_assessments_failed  # Invalid Lead IDs + AI failures
                 }
-                print(f"🔍 DEBUG: Using Salesforce summary data: {summary_data}")
+                print(f"🔍 DEBUG: Calculated summary data: {summary_data}")
             else:
                 # Fallback (should not happen with current implementation)
                 print(f"🔍 WARNING: No Salesforce summary data found, using calculated values")
+                
+                # Calculate AI assessments failed for fallback case
+                ai_assessments_failed = invalid_lead_ids_count + (valid_lead_ids_count - successful_ai_assessments)
+                
                 summary_data = {
-                    'leads_analyzed': 0,
+                    'total_lead_ids': total_lead_ids,
+                    'valid_lead_ids': valid_lead_ids_count,
+                    'invalid_lead_ids_count': invalid_lead_ids_count,
                     'leads_with_issues': leads_with_issues,
-                    'issue_percentage': 0,
+                    'issue_percentage': round((leads_with_issues / valid_lead_ids_count) * 100, 2) if valid_lead_ids_count > 0 else 0,
                     'avg_confidence_score': round((total_confidence_score / successful_ai_assessments) if successful_ai_assessments > 0 else 0, 1),
                     'not_in_tam_count': not_in_tam_count,
                     'suspicious_enrichment_count': suspicious_enrichment_count,
                     'ai_assessments_successful': successful_ai_assessments,
-                    'ai_assessments_failed': 0,
-                    'invalid_lead_ids_count': len(invalid_lead_ids) if invalid_lead_ids else 0,
-                    'total_lead_ids': len(df_original)
+                    'ai_assessments_failed': ai_assessments_failed
                 }
             
             # Create Excel file with formatting

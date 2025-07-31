@@ -721,7 +721,21 @@ async function handleAnalyzeExcel(e) {
             }
             
             // Display summary and individual lead results
-            let output = `✅ Analysis complete!\n\n📊 Summary:\n- Total leads analyzed: ${summary.leads_analyzed}\n- Leads with issues: ${summary.leads_with_issues} (${summary.issue_percentage}%)\n- Average confidence score: ${summary.avg_confidence_score}\n- AI assessments successful: ${summary.ai_assessments_successful}\n\nReady to export results!\n\n`;
+            // Use the exact same logic as the Excel service for consistency
+            const validationSummary = data.validation_summary;
+            
+            // Calculate metrics exactly like the Excel service
+            const totalLeadIds = validationSummary ? validationSummary.total_lead_ids : summary.leads_analyzed;
+            const invalidLeadIds = validationSummary ? validationSummary.invalid_lead_ids : 0;
+            const validLeadIds = totalLeadIds - invalidLeadIds;
+            
+            // AI assessments successful = total leads analyzed (all leads that were processed)
+            const aiAssessmentsSuccessful = totalLeadIds;
+            
+            // AI assessments failed = invalid Lead IDs (leads that couldn't be analyzed)
+            const aiAssessmentsFailed = invalidLeadIds;
+            
+            let output = `✅ Analysis complete!\n\n📊 Summary:\n- Total Lead IDs: ${totalLeadIds}\n- Valid Lead IDs: ${validLeadIds}\n- Invalid Lead IDs: ${invalidLeadIds}\n- Leads with issues: ${summary.leads_with_issues} (${summary.issue_percentage}%)\n- Average confidence score: ${summary.avg_confidence_score}\n- AI assessments successful: ${aiAssessmentsSuccessful}\n- AI assessments failed: ${aiAssessmentsFailed}\n\nReady to export results!\n\n`;
             
             output += `🔍 Individual Lead Results:\n${'='.repeat(50)}\n\n`;
             
