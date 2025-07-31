@@ -32,6 +32,12 @@ Access the web interface at `http://localhost:5000/ui`
 - Free email domain validation (blocks gmail.com, yahoo.com, etc. as company websites)
 - Website accessibility verification for corrected/inferred URLs
 
+📊 **Enhanced Excel Workflow**
+- **Partial Validation Support**: Analysis proceeds even with some invalid Lead IDs
+- **Visual Invalid ID Flagging**: Invalid Lead ID rows highlighted in light red for easy review
+- **Comprehensive Validation Summary**: Shows exact count of valid vs invalid Lead IDs
+- **Graceful Error Handling**: No data loss - all original Excel data preserved in export
+
 🔍 **Comprehensive Data Analysis**
 - 11+ lead fields including dual website/company sources and employee counts
 - Automated quality flags (`not_in_TAM`, `suspicious_enrichment`)
@@ -42,13 +48,15 @@ Access the web interface at `http://localhost:5000/ui`
 📊 **Three Analysis Methods**
 - **Single Lead Assessment**: Individual confidence scoring with detailed explanations
 - **SOQL Query Analysis**: Bulk processing with complex query support (JOINs, UNIONs)
-- **Excel File Upload**: Batch analysis from uploaded Lead ID lists
+- **Excel File Upload**: Batch analysis with partial validation support and visual error flagging
 
 📈 **Professional Excel Export**
 - RingCentral-branded reports with color-coded confidence scores
 - Summary statistics and individual lead breakdowns with AI explanations
 - Consistent export data (cached analysis results prevent AI variability)
 - Multiple export formats for different analysis types
+- **Invalid Lead ID Highlighting**: Light red background for easy identification and review
+- **Complete Data Preservation**: All original Excel data maintained with AI analysis appended
 
 ⚡ **Enhanced User Experience**
 - Step-by-step workflow with validation at each stage
@@ -164,8 +172,8 @@ The system analyzes 11+ core fields with cross-validation:
 Visit `http://localhost:5000/ui` for interactive analysis with:
 - Single lead confidence assessment
 - Bulk SOQL query analysis with preview
-- Excel file upload with step-by-step workflow
-- Professional export with cached results
+- Excel file upload with partial validation and visual error flagging
+- Professional export with cached results and invalid Lead ID highlighting
 
 ### API Usage
 ```bash

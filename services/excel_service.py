@@ -105,13 +105,19 @@ class ExcelService:
         
         # Summary statistics
         summary_items = [
-            ("Total Leads Analyzed", summary_data.get('leads_analyzed', 0)),
+            ("Total Lead IDs", summary_data.get('total_lead_ids', 0)),
+            ("Valid Lead IDs", summary_data.get('leads_analyzed', 0)),
+            ("Invalid Lead IDs", summary_data.get('invalid_lead_ids_count', 0)),
             ("Leads with Issues", summary_data.get('leads_with_issues', 0)),
             ("Issue Percentage", f"{summary_data.get('issue_percentage', 0)}%"),
             ("Average Confidence Score", summary_data.get('avg_confidence_score', 0)),
             ("Not in TAM Count", summary_data.get('not_in_tam_count', 0)),
             ("Suspicious Enrichment Count", summary_data.get('suspicious_enrichment_count', 0)),
         ]
+        
+        # Add warning about invalid Lead IDs if any exist
+        if summary_data.get('invalid_lead_ids_count', 0) > 0:
+            summary_items.insert(3, ("⚠️ INVALID LEAD IDS", f"{summary_data.get('invalid_lead_ids_count', 0)} rows marked in RED"))
         
         if summary_data.get('total_query_results'):
             summary_items.insert(0, ("Total Query Results", summary_data.get('total_query_results', 0)))
@@ -372,13 +378,27 @@ class ExcelService:
         
         return id_15 + suffix
 
-    def create_excel_with_analysis(self, original_data, analysis_results, lead_id_column, filename_prefix="excel_analysis"):
-        """Create Excel file combining original data with AI analysis results"""
+    def create_excel_with_analysis(self, original_data, analysis_results, lead_id_column, filename_prefix="excel_analysis", invalid_lead_ids=None):
+        """Create Excel file combining original data with AI analysis results, handling invalid Lead IDs"""
         try:
             # Convert original data to DataFrame and handle NaN values
             df_original = pd.DataFrame(original_data)
             # Ensure no NaN values that could cause JSON serialization issues
             df_original = df_original.where(pd.notnull(df_original), '')
+            
+            # Convert invalid_lead_ids to set for fast lookup
+            invalid_lead_ids_set = set()
+            if invalid_lead_ids:
+                print(f"🔍 DEBUG: Processing {len(invalid_lead_ids)} invalid Lead IDs")
+                for lid in invalid_lead_ids:
+                    lid_str = str(lid).strip()
+                    invalid_lead_ids_set.add(lid_str)
+                    invalid_lead_ids_set.add(lid_str.upper())
+                    invalid_lead_ids_set.add(lid_str.lower())
+                    print(f"🔍 DEBUG: Added to set: '{lid_str}', '{lid_str.upper()}', '{lid_str.lower()}'")
+                print(f"🔍 DEBUG: Invalid Lead IDs set contains {len(invalid_lead_ids_set)} entries")
+            else:
+                print(f"🔍 DEBUG: No invalid Lead IDs provided")
             
             # Create analysis dictionary for fast lookup with both 15 and 18 char Lead IDs
             analysis_dict = {}
@@ -445,12 +465,20 @@ class ExcelService:
             for _, row in df_original.iterrows():
                 original_lead_id = str(row[lead_id_column]).strip()
                 
-                # Try multiple formats to find a match
-                analysis = None
+                # Check if this Lead ID is invalid
+                is_invalid_lead_id = False
                 for potential_id in [original_lead_id, original_lead_id.upper(), original_lead_id.lower()]:
-                    if potential_id in analysis_dict:
-                        analysis = analysis_dict[potential_id]
+                    if potential_id in invalid_lead_ids_set:
+                        is_invalid_lead_id = True
                         break
+                
+                # Try multiple formats to find a match (only for valid Lead IDs)
+                analysis = None
+                if not is_invalid_lead_id:
+                    for potential_id in [original_lead_id, original_lead_id.upper(), original_lead_id.lower()]:
+                        if potential_id in analysis_dict:
+                            analysis = analysis_dict[potential_id]
+                            break
                 
                 if not analysis:
                     analysis = {}
@@ -523,7 +551,9 @@ class ExcelService:
                 )
                 
                 # AI Status - improved logic
-                if analysis:
+                if is_invalid_lead_id:
+                    ai_status = 'Invalid Lead ID'
+                elif analysis:
                     # Check if we have a valid confidence assessment
                     has_confidence_score = (confidence_assessment and 
                                           isinstance(confidence_assessment.get('confidence_score'), (int, float)) and 
@@ -551,8 +581,32 @@ class ExcelService:
             for col_name, col_data in analysis_columns.items():
                 df_original[col_name] = col_data
             
+            # Add a flag column for invalid Lead IDs
+            invalid_lead_id_flags = []
+            invalid_count = 0
+            for idx, (_, row) in enumerate(df_original.iterrows()):
+                original_lead_id = str(row[lead_id_column]).strip()
+                is_invalid = False
+                for potential_id in [original_lead_id, original_lead_id.upper(), original_lead_id.lower()]:
+                    if potential_id in invalid_lead_ids_set:
+                        is_invalid = True
+                        break
+                invalid_lead_id_flags.append(is_invalid)
+                if is_invalid:
+                    invalid_count += 1
+                    print(f"🔍 DEBUG: Row {idx}: Marked Lead ID '{original_lead_id}' as invalid")
+                else:
+                    print(f"🔍 DEBUG: Row {idx}: Lead ID '{original_lead_id}' is valid")
+            
+            print(f"🔍 DEBUG: Total invalid Lead IDs flagged: {invalid_count}")
+            df_original['_is_invalid_lead_id'] = invalid_lead_id_flags
+            
+            # Remove the flag column from display (it's only used for styling)
+            df_display = df_original.drop(columns=['_is_invalid_lead_id'])
+            
             # Create summary data for the summary section
             avg_confidence_score = (total_confidence_score / successful_ai_assessments) if successful_ai_assessments > 0 else 0
+            invalid_lead_count = len(invalid_lead_ids) if invalid_lead_ids else 0
             summary_data = {
                 'leads_analyzed': leads_analyzed,
                 'leads_with_issues': leads_with_issues,
@@ -561,7 +615,9 @@ class ExcelService:
                 'not_in_tam_count': not_in_tam_count,
                 'suspicious_enrichment_count': suspicious_enrichment_count,
                 'ai_assessments_successful': successful_ai_assessments,
-                'ai_assessments_failed': leads_analyzed - successful_ai_assessments
+                'ai_assessments_failed': leads_analyzed - successful_ai_assessments,
+                'invalid_lead_ids_count': invalid_lead_count,
+                'total_lead_ids': leads_analyzed + invalid_lead_count
             }
             
             # Create Excel file with formatting
@@ -572,14 +628,14 @@ class ExcelService:
             
             # Add title with RingCentral styling
             current_row = 1
-            ws.merge_cells(f'A{current_row}:{get_column_letter(len(df_original.columns))}{current_row}')
+            ws.merge_cells(f'A{current_row}:{get_column_letter(len(df_display.columns))}{current_row}')
             ws[f'A{current_row}'] = "Excel Upload Analysis Results"
             ws[f'A{current_row}'].font = self.title_font
             ws[f'A{current_row}'].alignment = self.center_alignment
             current_row += 1
             
             # Add timestamp
-            ws.merge_cells(f'A{current_row}:{get_column_letter(len(df_original.columns))}{current_row}')
+            ws.merge_cells(f'A{current_row}:{get_column_letter(len(df_display.columns))}{current_row}')
             ws[f'A{current_row}'] = f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
             ws[f'A{current_row}'].alignment = self.center_alignment
             current_row += 2
@@ -590,7 +646,7 @@ class ExcelService:
             
             # Add headers 
             header_row = current_row
-            for col_idx, header in enumerate(df_original.columns, 1):
+            for col_idx, header in enumerate(df_display.columns, 1):
                 cell = ws.cell(row=header_row, column=col_idx, value=header)
                 cell.font = self.header_font
                 cell.fill = self.header_fill
@@ -601,12 +657,33 @@ class ExcelService:
             
             # Add data rows
             for row_idx, (_, row) in enumerate(df_original.iterrows(), current_row):
-                for col_idx, value in enumerate(row, 1):
+                # Check if this row has an invalid Lead ID
+                is_invalid_row = row['_is_invalid_lead_id'] if '_is_invalid_lead_id' in row else False
+                
+                # Debug logging for invalid rows
+                if is_invalid_row:
+                    print(f"🔍 DEBUG: Row {row_idx} is marked as invalid Lead ID")
+                    print(f"🔍 DEBUG: Row data keys: {list(row.keys())}")
+                    print(f"🔍 DEBUG: Invalid flag value: {row['_is_invalid_lead_id']}")
+                
+                # Get display row (without the flag column)
+                display_row = row.drop('_is_invalid_lead_id')
+                
+                for col_idx, value in enumerate(display_row, 1):
                     cell = ws.cell(row=row_idx, column=col_idx, value=value)
                     cell.border = self.border
                     
-                    # Special formatting for AI columns with RingCentral colors
-                    header = df_original.columns[col_idx - 1]
+                    # Apply red background for invalid Lead ID rows (PRIORITY 1)
+                    header = df_display.columns[col_idx - 1]
+                    if is_invalid_row:
+                        # Light red background for invalid Lead ID rows - this takes priority
+                        cell.fill = PatternFill(start_color="FFE6E6", end_color="FFE6E6", fill_type="solid")  # Light red
+                        cell.font = Font(color="CC0000", bold=True)  # Dark red text, bold for contrast
+                        cell.alignment = self.center_alignment
+                        print(f"🔍 DEBUG: Applied light red styling to row {row_idx}, column {col_idx} ({header})")
+                        continue  # Skip other styling for invalid rows
+                    
+                    # Special formatting for AI columns with RingCentral colors (only for valid rows)
                     if header in ['AI_Not_in_TAM', 'AI_Suspicious_Enrichment']:
                         cell.alignment = self.center_alignment
                         if value == 'Yes':
@@ -630,7 +707,7 @@ class ExcelService:
                         cell.alignment = self.wrap_alignment
             
             # Auto-adjust column widths
-            for col_idx, header in enumerate(df_original.columns, 1):
+            for col_idx, header in enumerate(df_display.columns, 1):
                 if header.startswith('AI_'):
                     if header in ['AI_Explanation', 'AI_Corrections', 'AI_Inferences']:
                         ws.column_dimensions[get_column_letter(col_idx)].width = 40

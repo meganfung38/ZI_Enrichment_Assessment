@@ -624,14 +624,22 @@ async function handleValidateLeadIds(e) {
             output += `- Valid Lead IDs: ${validationData.valid_lead_ids}\n`;
             output += `- Invalid Lead IDs: ${validationData.invalid_lead_ids}\n`;
             
-            if (validationData.invalid_ids && validationData.invalid_ids.length > 0) {
+            if (validationData.invalid_lead_ids_list && validationData.invalid_lead_ids_list.length > 0) {
                 output += `\n❌ Invalid Lead IDs found:\n`;
-                validationData.invalid_ids.forEach(id => {
+                validationData.invalid_lead_ids_list.forEach(id => {
                     output += `  • ${id}\n`;
                 });
-                output += `\n❌ Please fix the invalid Lead IDs before proceeding.`;
-                responseDiv.className = 'response error';
-                document.getElementById('analyzeExcelBtn').disabled = true;
+                
+                if (validationData.validation_summary && validationData.validation_summary.partial_validation) {
+                    output += `\n⚠️ Partial validation detected. Analysis will proceed with ${validationData.valid_lead_ids} valid Lead IDs only.`;
+                    output += `\n📋 Invalid Lead IDs (${validationData.invalid_lead_ids}) will be marked in red in the export.`;
+                    responseDiv.className = 'response warning';
+                    document.getElementById('analyzeExcelBtn').disabled = false; // Allow analysis to proceed
+                } else {
+                    output += `\n❌ No valid Lead IDs found. Please check your data and try again.`;
+                    responseDiv.className = 'response error';
+                    document.getElementById('analyzeExcelBtn').disabled = true;
+                }
             } else {
                 output += `\n✅ All Lead IDs are valid! You can now proceed to analyze.`;
                 responseDiv.className = 'response success';
@@ -700,6 +708,11 @@ async function handleAnalyzeExcel(e) {
             excelAnalysisResults = data;
             const summary = data.data.summary;
             const leads = data.data.leads;
+            
+            // Store validation summary for export
+            if (data.validation_summary) {
+                excelAnalysisResults.validation_summary = data.validation_summary;
+            }
             
             // Display summary and individual lead results
             let output = `✅ Analysis complete!\n\n📊 Summary:\n- Total leads analyzed: ${summary.leads_analyzed}\n- Leads with issues: ${summary.leads_with_issues} (${summary.issue_percentage}%)\n- Average confidence score: ${summary.avg_confidence_score}\n- AI assessments successful: ${summary.ai_assessments_successful}\n\nReady to export results!\n\n`;
@@ -794,6 +807,14 @@ async function handleExportExcel(e) {
         formData.append('sheet_name', sheetName);
         formData.append('lead_id_column', leadIdColumn);
         formData.append('analysis_results', JSON.stringify(excelAnalysisResults.data.leads));
+        
+        // Add invalid Lead IDs if available from validation results
+        if (excelAnalysisResults.validation_summary && excelAnalysisResults.validation_summary.invalid_lead_ids_list) {
+            formData.append('invalid_lead_ids', JSON.stringify(excelAnalysisResults.validation_summary.invalid_lead_ids_list));
+            console.log('🔍 DEBUG: Passing invalid Lead IDs to export:', excelAnalysisResults.validation_summary.invalid_lead_ids_list);
+        } else {
+            console.log('🔍 DEBUG: No invalid Lead IDs found in validation summary');
+        }
         
         const response = await fetch('/excel/export-analysis-with-file', {
             method: 'POST',

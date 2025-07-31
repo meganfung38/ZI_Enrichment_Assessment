@@ -748,19 +748,17 @@ def validate_excel_lead_ids():
                 'message': validation_message
             }), 500
         
-        # Check if any Lead IDs are invalid (strict validation)
+        # Get valid and invalid Lead IDs
+        valid_lead_ids = validation_result.get('valid_lead_ids', [])
         invalid_lead_ids = validation_result.get('invalid_lead_ids', [])
-        if invalid_lead_ids:
-            # 🔍 DEBUG: Log the invalid Lead IDs for debugging
-            print(f"🔍 DEBUG: Found {len(invalid_lead_ids)} invalid Lead IDs:")
-            for i, lid in enumerate(invalid_lead_ids[:10]):  # Show first 10 for debugging
-                print(f"   {i+1}. '{lid}' (length: {len(lid)}, type: {type(lid)})")
-            
+        
+        # Check if we have any valid Lead IDs
+        if not valid_lead_ids:
             return jsonify({
                 'status': 'error',
-                'message': f'Invalid Lead IDs found: {", ".join(invalid_lead_ids)}. All Lead IDs must be valid to proceed with analysis.',
+                'message': f'No valid Lead IDs found. All {len(invalid_lead_ids)} Lead IDs are invalid.',
                 'invalid_lead_ids': invalid_lead_ids,
-                'valid_lead_ids': validation_result.get('valid_lead_ids', []),
+                'valid_lead_ids': [],
                 'debug_info': {
                     'total_extracted': len(lead_ids),
                     'format_invalid_count': validation_result.get('format_invalid_count', 0),
@@ -768,17 +766,21 @@ def validate_excel_lead_ids():
                 }
             }), 400
         
-        # All Lead IDs are valid
-        valid_lead_ids = validation_result['valid_lead_ids']
-        
+        # Return validation results (allowing partial validation)
         return jsonify({
             'status': 'success',
-            'message': f'All {len(valid_lead_ids)} Lead IDs are valid',
+            'message': f'Validation complete: {len(valid_lead_ids)} valid, {len(invalid_lead_ids)} invalid Lead IDs',
             'data': {
                 'total_lead_ids': len(lead_ids),
                 'valid_lead_ids': len(valid_lead_ids),
-                'invalid_lead_ids': [],
-                'original_data_rows': extraction_result['total_rows']
+                'invalid_lead_ids': len(invalid_lead_ids),
+                'invalid_lead_ids_list': invalid_lead_ids,
+                'original_data_rows': extraction_result['total_rows'],
+                'validation_summary': {
+                    'can_proceed': len(valid_lead_ids) > 0,
+                    'all_valid': len(invalid_lead_ids) == 0,
+                    'partial_validation': len(valid_lead_ids) > 0 and len(invalid_lead_ids) > 0
+                }
             }
         })
         
@@ -849,7 +851,7 @@ def analyze_excel_leads():
                 'message': f'No valid Lead IDs found in column "{lead_id_column}"'
             }), 400
         
-        # Validate Lead IDs with Salesforce (strict validation)
+        # Validate Lead IDs with Salesforce (allow partial validation)
         validation_result, validation_message = sf_service.validate_lead_ids(lead_ids)
         
         if validation_result is None:
@@ -858,17 +860,20 @@ def analyze_excel_leads():
                 'message': validation_message
             }), 500
         
-        # Check if any Lead IDs are invalid (strict validation)
+        # Get valid and invalid Lead IDs
+        valid_lead_ids = validation_result.get('valid_lead_ids', [])
         invalid_lead_ids = validation_result.get('invalid_lead_ids', [])
-        if invalid_lead_ids:
+        
+        # Check if we have any valid Lead IDs to analyze
+        if not valid_lead_ids:
             return jsonify({
                 'status': 'error',
-                'message': f'Invalid Lead IDs found: {", ".join(invalid_lead_ids)}. Analysis cannot proceed.',
+                'message': f'No valid Lead IDs found. All {len(invalid_lead_ids)} Lead IDs are invalid.',
                 'invalid_lead_ids': invalid_lead_ids
             }), 400
         
-        # All Lead IDs are valid, proceed with analysis
-        valid_lead_ids = validation_result['valid_lead_ids']
+        # Proceed with analysis on valid Lead IDs only
+        print(f"🔍 Proceeding with {len(valid_lead_ids)} valid Lead IDs, skipping {len(invalid_lead_ids)} invalid IDs")
         
         # Analyze the leads using the existing service method
         # This only works with Salesforce data, not Excel data
@@ -882,19 +887,30 @@ def analyze_excel_leads():
                 'message': message
             }), 500
         
-        # Store original Excel data separately for export (don't include in main response)
-        # This avoids JSON serialization issues with NaN values
+        # Store original Excel data and validation info for export
         result['excel_metadata'] = {
             'lead_id_column': lead_id_column,
             'sheet_name': sheet_name,
             'filename': file.filename,
-            'has_original_data': True  # Flag that original data is available for export
+            'has_original_data': True,  # Flag that original data is available for export
+            'validation_summary': {
+                'total_lead_ids': len(lead_ids),
+                'valid_lead_ids': len(valid_lead_ids),
+                'invalid_lead_ids': len(invalid_lead_ids),
+                'invalid_lead_ids_list': invalid_lead_ids
+            }
         }
         
         return jsonify({
             'status': 'success',
-            'message': message,
-            'data': result
+            'message': f"{message} (Skipped {len(invalid_lead_ids)} invalid Lead IDs)",
+            'data': result,
+            'validation_summary': {
+                'total_lead_ids': len(lead_ids),
+                'valid_lead_ids': len(valid_lead_ids),
+                'invalid_lead_ids': len(invalid_lead_ids),
+                'invalid_lead_ids_list': invalid_lead_ids
+            }
         })
         
     except Exception as e:
@@ -943,9 +959,12 @@ def export_excel_analysis():
                 'message': 'original_data must be a list'
             }), 400
         
+        # Get invalid Lead IDs from the request if available
+        invalid_lead_ids = data.get('invalid_lead_ids', [])
+        
         # Generate Excel file with combined data
         result = excel_service.create_excel_with_analysis(
-            original_data, analysis_results, lead_id_column, filename_prefix
+            original_data, analysis_results, lead_id_column, filename_prefix, invalid_lead_ids
         )
         
         if not result['success']:
@@ -1013,12 +1032,17 @@ def export_excel_analysis_with_file():
                 'message': extraction_result['error']
             }), 400
         
+        # Get invalid Lead IDs from the request if available
+        invalid_lead_ids_json = request.form.get('invalid_lead_ids', '[]')
+        invalid_lead_ids = json.loads(invalid_lead_ids_json)
+        
         # Generate Excel file with combined data
         result = excel_service.create_excel_with_analysis(
             extraction_result['original_data'], 
             analysis_results, 
             lead_id_column, 
-            'excel_analysis'
+            'excel_analysis',
+            invalid_lead_ids
         )
         
         if not result['success']:

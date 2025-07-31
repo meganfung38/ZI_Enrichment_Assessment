@@ -149,6 +149,12 @@ button:disabled {
     font-style: italic;
 }
 
+.response.warning {
+    background-color: #fff3cd;
+    border: 1px solid #ffeaa7;
+    color: #856404;
+}
+
 .method-badge {
     display: inline-block;
     padding: 4px 8px;

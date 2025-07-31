@@ -93,8 +93,8 @@ ZI_Enrichment_Assessment/
 
 ### Excel Upload Workflow
 - `POST /excel/parse` - Parse uploaded Excel file and extract headers
-- `POST /excel/validate-lead-ids` - Validate Lead IDs with Salesforce
-- `POST /excel/analyze` - **Analyze leads from Excel upload with AI assessment**
+- `POST /excel/validate-lead-ids` - Validate Lead IDs with partial validation support
+- `POST /excel/analyze` - **Analyze leads from Excel upload with AI assessment (handles invalid Lead IDs)**
 
 ### Export Endpoints (Cached Results)
 - `POST /leads/export-analysis-data` - Export bulk analysis results to Excel
@@ -144,12 +144,12 @@ Bulk processing supporting complex queries:
 - Subqueries: `WHERE AccountId IN (SELECT...)`
 
 ### 3. Excel File Upload
-Step-by-step workflow:
+Step-by-step workflow with partial validation support:
 1. **Parse** - Extract sheet names and column headers
 2. **Select** - Choose sheet and Lead ID column
-3. **Validate** - Verify Lead IDs exist in Salesforce
-4. **Analyze** - Run AI assessment on all valid leads
-5. **Export** - Generate combined Excel report
+3. **Validate** - Verify Lead IDs with detailed valid/invalid breakdown
+4. **Analyze** - Run AI assessment on valid leads (invalid Lead IDs preserved)
+5. **Export** - Generate combined Excel report with invalid Lead IDs highlighted in red
 
 ## Excel Export Features
 
@@ -159,6 +159,8 @@ Professional reports with RingCentral branding include:
 - **Summary statistics** (total leads, issue percentages, average confidence)
 - **Individual lead breakdowns** with detailed AI explanations
 - **Consistent results** (cached analysis prevents AI response variability)
+- **Invalid Lead ID highlighting** (light red background for easy review)
+- **Complete data integrity** (all original rows preserved, even invalid ones)
 
 **Export Columns Added:**
 - `AI_Confidence_Score` - Numerical confidence rating
@@ -167,7 +169,7 @@ Professional reports with RingCentral branding include:
 - `AI_Inferences` - Lower-confidence suggestions (JSON format)
 - `AI_Not_in_TAM` - Quality flag for missing enrichment
 - `AI_Suspicious_Enrichment` - Quality flag for suspicious data
-- `AI_Status` - Analysis completion status
+- `AI_Status` - Analysis completion status (includes "Invalid Lead ID" for flagged rows)
 
 ## Usage Examples
 
@@ -175,8 +177,8 @@ Professional reports with RingCentral branding include:
 The interactive interface at `/ui` provides:
 - **Single Lead**: Enter Lead ID for instant confidence assessment
 - **Bulk Analysis**: Write SOQL queries with preview before full analysis
-- **Excel Upload**: Drag-and-drop workflow with validation at each step
-- **Professional Export**: Download branded Excel reports with cached results
+- **Excel Upload**: Drag-and-drop workflow with partial validation and visual error flagging
+- **Professional Export**: Download branded Excel reports with invalid Lead ID highlighting
 
 ### API Examples
 
@@ -232,11 +234,15 @@ All endpoints return standardized JSON:
 - **Lead ID Conversion**: Automatic 15 ↔ 18 character Salesforce ID handling
 - **Batch Optimization**: Efficient processing for large datasets
 - **Error Recovery**: Graceful handling of missing or invalid data
+- **Partial Validation**: Analysis proceeds with valid Lead IDs while preserving invalid ones
+- **Visual Error Flagging**: Invalid Lead IDs clearly marked for review in exports
 
 ### Professional Export
 - **Cached Results**: Export endpoints use stored analysis data for consistency
 - **Brand Compliance**: RingCentral colors and professional formatting
 - **Data Integrity**: Original Excel data preserved with AI analysis appended
+- **Invalid Lead ID Highlighting**: Light red background for easy identification and review
+- **Complete Data Preservation**: All original rows maintained, including invalid Lead IDs
 
 ### Enhanced UX
 - **Step-by-Step Workflows**: Clear validation at each stage
