@@ -559,6 +559,10 @@ class ExcelService:
                 if is_invalid_lead_id:
                     ai_status = 'Invalid Lead ID'
                 elif analysis:
+                    # Debug logging for AI assessment status
+                    ai_assessment_status = analysis.get('ai_assessment_status', 'NONE')
+                    print(f"🔍 DEBUG: Lead ID '{original_lead_id}' - AI Assessment Status: '{ai_assessment_status}'")
+                    print(f"🔍 DEBUG: Lead ID '{original_lead_id}' - Has confidence score: {bool(confidence_assessment and isinstance(confidence_assessment.get('confidence_score'), (int, float)) and confidence_assessment.get('confidence_score') is not None)}")
                     # Check if we have a valid confidence assessment
                     has_confidence_score = (confidence_assessment and 
                                           isinstance(confidence_assessment.get('confidence_score'), (int, float)) and 
@@ -568,6 +572,8 @@ class ExcelService:
                         ai_status = 'Analyzed'
                     elif analysis.get('ai_assessment_status') == 'success':
                         ai_status = 'Analyzed'
+                    elif analysis.get('ai_assessment_status') and analysis.get('ai_assessment_status').startswith('failed:'):
+                        ai_status = 'AI Assessment Failed'
                     elif analysis.get('ai_assessment_status'):
                         ai_status = str(analysis.get('ai_assessment_status'))
                     else:
