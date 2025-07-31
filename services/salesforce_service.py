@@ -637,16 +637,19 @@ class SalesforceService:
                     # Extract valid Lead IDs from this batch (in 18-char format from Salesforce)
                     batch_valid_18char = [record['Id'] for record in result['records']]
                     
-                    # Convert back to original format for response
-                    for valid_18char in batch_valid_18char:
-                        original_format = id_mapping.get(valid_18char, valid_18char)
-                        valid_lead_ids.append(original_format)
-                    
-                    # Find invalid Lead IDs in this batch (return in original format)
+                    # Find which of our queried IDs actually exist in Salesforce
+                    # Only count IDs that we actually queried for as valid
+                    actual_valid_ids = []
                     for clean_id in batch:
-                        if clean_id not in batch_valid_18char:
+                        if clean_id in batch_valid_18char:
+                            actual_valid_ids.append(clean_id)
+                            original_format = id_mapping.get(clean_id, clean_id)
+                            valid_lead_ids.append(original_format)
+                        else:
                             original_format = id_mapping.get(clean_id, clean_id)
                             sf_invalid_ids.append(original_format)
+                    
+                    print(f"🔍 Batch {i//batch_size + 1}: {len(actual_valid_ids)} valid, {len(batch) - len(actual_valid_ids)} invalid out of {len(batch)} Lead IDs")
             
             # Combine all invalid Lead IDs (format issues + Salesforce not found)
             all_invalid_ids = format_invalid_ids + sf_invalid_ids

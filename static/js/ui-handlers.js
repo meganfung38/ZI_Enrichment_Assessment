@@ -618,6 +618,12 @@ async function handleValidateLeadIds(e) {
         
         if (response.ok) {
             const validationData = data.data;
+            
+            // Debug logging
+            console.log('🔍 DEBUG: Validation response:', data);
+            console.log('🔍 DEBUG: Validation data:', validationData);
+            console.log('🔍 DEBUG: Invalid Lead IDs list:', validationData.invalid_lead_ids_list);
+            
             let output = `✅ Validation Complete!\n\n`;
             output += `📋 Validation Summary:\n`;
             output += `- Total Lead IDs found: ${validationData.total_lead_ids}\n`;
@@ -806,7 +812,7 @@ async function handleExportExcel(e) {
         formData.append('file', excelFileData);
         formData.append('sheet_name', sheetName);
         formData.append('lead_id_column', leadIdColumn);
-        formData.append('analysis_results', JSON.stringify(excelAnalysisResults.data.leads));
+        formData.append('analysis_results', JSON.stringify(excelAnalysisResults.data));
         
         // Add invalid Lead IDs if available from validation results
         if (excelAnalysisResults.validation_summary && excelAnalysisResults.validation_summary.invalid_lead_ids_list) {

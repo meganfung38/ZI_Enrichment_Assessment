@@ -400,10 +400,15 @@ class ExcelService:
             else:
                 print(f"🔍 DEBUG: No invalid Lead IDs provided")
             
+            # Handle both list of leads and full analysis result object
+            leads_data = analysis_results
+            if isinstance(analysis_results, dict) and 'leads' in analysis_results:
+                leads_data = analysis_results['leads']
+            
             # Create analysis dictionary for fast lookup with both 15 and 18 char Lead IDs
             analysis_dict = {}
-            print(f"🔍 DEBUG: Creating analysis dictionary from {len(analysis_results)} results")
-            for i, result in enumerate(analysis_results):
+            print(f"🔍 DEBUG: Creating analysis dictionary from {len(leads_data)} results")
+            for i, result in enumerate(leads_data):
                 lead_id = result.get('Id', '')
                 if lead_id:
                     lead_id_str = str(lead_id).strip()
@@ -443,8 +448,8 @@ class ExcelService:
             if len(unique_ids) > 5:
                 print(f"   ... and {len(unique_ids) - 5} more")
             
-            # Calculate summary statistics from analysis results
-            leads_analyzed = len(df_original)
+            # Initialize counters for Excel-specific calculations
+            # Note: We'll use Salesforce summary data for the final metrics
             leads_with_issues = 0
             not_in_tam_count = 0
             suspicious_enrichment_count = 0
@@ -505,7 +510,7 @@ class ExcelService:
                 if confidence_assessment is None:
                     confidence_assessment = {}
                 
-                # Update summary statistics
+                # Update summary statistics (for debugging only - final metrics come from Salesforce)
                 if analysis:
                     # Count quality issues
                     if analysis.get('not_in_TAM') or analysis.get('suspicious_enrichment'):
@@ -605,23 +610,38 @@ class ExcelService:
             df_display = df_original.drop(columns=['_is_invalid_lead_id'])
             
             # Create summary data for the summary section
-            avg_confidence_score = (total_confidence_score / successful_ai_assessments) if successful_ai_assessments > 0 else 0
-            invalid_lead_count = len(invalid_lead_ids) if invalid_lead_ids else 0
-            total_original_leads = len(df_original)  # Total leads from original Excel file
-            valid_leads_analyzed = leads_analyzed  # Leads that were successfully analyzed
-            
-            summary_data = {
-                'leads_analyzed': valid_leads_analyzed,  # Only valid leads that were analyzed
-                'leads_with_issues': leads_with_issues,
-                'issue_percentage': round((leads_with_issues / valid_leads_analyzed) * 100, 2) if valid_leads_analyzed > 0 else 0,
-                'avg_confidence_score': round(avg_confidence_score, 1),
-                'not_in_tam_count': not_in_tam_count,
-                'suspicious_enrichment_count': suspicious_enrichment_count,
-                'ai_assessments_successful': successful_ai_assessments,
-                'ai_assessments_failed': valid_leads_analyzed - successful_ai_assessments,
-                'invalid_lead_ids_count': invalid_lead_count,
-                'total_lead_ids': total_original_leads  # Total from original Excel file
-            }
+            # Always use Salesforce service summary data as the source of truth
+            if hasattr(analysis_results, 'get') and isinstance(analysis_results, dict) and 'summary' in analysis_results:
+                # Use summary data from Salesforce service (source of truth)
+                sf_summary = analysis_results['summary']
+                summary_data = {
+                    'leads_analyzed': sf_summary.get('leads_analyzed', 0),
+                    'leads_with_issues': sf_summary.get('leads_with_issues', 0),
+                    'issue_percentage': sf_summary.get('issue_percentage', 0),
+                    'avg_confidence_score': sf_summary.get('avg_confidence_score', 0),
+                    'not_in_tam_count': sf_summary.get('not_in_tam_count', 0),
+                    'suspicious_enrichment_count': sf_summary.get('suspicious_enrichment_count', 0),
+                    'ai_assessments_successful': sf_summary.get('ai_assessments_successful', 0),
+                    'ai_assessments_failed': sf_summary.get('ai_assessments_failed', 0),
+                    'invalid_lead_ids_count': len(invalid_lead_ids) if invalid_lead_ids else 0,
+                    'total_lead_ids': len(df_original)  # Total from original Excel file
+                }
+                print(f"🔍 DEBUG: Using Salesforce summary data: {summary_data}")
+            else:
+                # Fallback (should not happen with current implementation)
+                print(f"🔍 WARNING: No Salesforce summary data found, using calculated values")
+                summary_data = {
+                    'leads_analyzed': 0,
+                    'leads_with_issues': leads_with_issues,
+                    'issue_percentage': 0,
+                    'avg_confidence_score': round((total_confidence_score / successful_ai_assessments) if successful_ai_assessments > 0 else 0, 1),
+                    'not_in_tam_count': not_in_tam_count,
+                    'suspicious_enrichment_count': suspicious_enrichment_count,
+                    'ai_assessments_successful': successful_ai_assessments,
+                    'ai_assessments_failed': 0,
+                    'invalid_lead_ids_count': len(invalid_lead_ids) if invalid_lead_ids else 0,
+                    'total_lead_ids': len(df_original)
+                }
             
             # Create Excel file with formatting
             wb = Workbook()
