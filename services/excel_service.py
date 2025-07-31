@@ -115,9 +115,9 @@ class ExcelService:
             ("Suspicious Enrichment Count", summary_data.get('suspicious_enrichment_count', 0)),
         ]
         
-        # Add warning about invalid Lead IDs if any exist
+        # Add warning about invalid Lead IDs if any exist (but don't duplicate the count)
         if summary_data.get('invalid_lead_ids_count', 0) > 0:
-            summary_items.insert(3, ("⚠️ INVALID LEAD IDS", f"{summary_data.get('invalid_lead_ids_count', 0)} rows marked in RED"))
+            summary_items.insert(3, ("⚠️ Note", f"{summary_data.get('invalid_lead_ids_count', 0)} invalid Lead IDs marked in RED for review"))
         
         if summary_data.get('total_query_results'):
             summary_items.insert(0, ("Total Query Results", summary_data.get('total_query_results', 0)))
@@ -607,17 +607,20 @@ class ExcelService:
             # Create summary data for the summary section
             avg_confidence_score = (total_confidence_score / successful_ai_assessments) if successful_ai_assessments > 0 else 0
             invalid_lead_count = len(invalid_lead_ids) if invalid_lead_ids else 0
+            total_original_leads = len(df_original)  # Total leads from original Excel file
+            valid_leads_analyzed = leads_analyzed  # Leads that were successfully analyzed
+            
             summary_data = {
-                'leads_analyzed': leads_analyzed,
+                'leads_analyzed': valid_leads_analyzed,  # Only valid leads that were analyzed
                 'leads_with_issues': leads_with_issues,
-                'issue_percentage': round((leads_with_issues / leads_analyzed) * 100, 2) if leads_analyzed > 0 else 0,
+                'issue_percentage': round((leads_with_issues / valid_leads_analyzed) * 100, 2) if valid_leads_analyzed > 0 else 0,
                 'avg_confidence_score': round(avg_confidence_score, 1),
                 'not_in_tam_count': not_in_tam_count,
                 'suspicious_enrichment_count': suspicious_enrichment_count,
                 'ai_assessments_successful': successful_ai_assessments,
-                'ai_assessments_failed': leads_analyzed - successful_ai_assessments,
+                'ai_assessments_failed': valid_leads_analyzed - successful_ai_assessments,
                 'invalid_lead_ids_count': invalid_lead_count,
-                'total_lead_ids': leads_analyzed + invalid_lead_count
+                'total_lead_ids': total_original_leads  # Total from original Excel file
             }
             
             # Create Excel file with formatting
