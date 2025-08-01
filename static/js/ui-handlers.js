@@ -729,8 +729,8 @@ async function handleAnalyzeExcel(e) {
             const invalidLeadIds = validationSummary ? validationSummary.invalid_lead_ids : 0;
             const validLeadIds = totalLeadIds - invalidLeadIds;
             
-            // AI assessments successful = total leads analyzed (all leads that were processed)
-            const aiAssessmentsSuccessful = totalLeadIds;
+            // AI assessments successful = valid Lead IDs that were successfully analyzed
+            const aiAssessmentsSuccessful = validLeadIds;
             
             // AI assessments failed = invalid Lead IDs (leads that couldn't be analyzed)
             const aiAssessmentsFailed = invalidLeadIds;

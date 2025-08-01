@@ -625,11 +625,11 @@ class ExcelService:
             if hasattr(analysis_results, 'get') and isinstance(analysis_results, dict) and 'summary' in analysis_results:
                 sf_summary = analysis_results['summary']
                 
-                # AI assessments successful = leads that were successfully analyzed (valid Lead IDs with successful AI)
-                ai_assessments_successful = sf_summary.get('ai_assessments_successful', 0)
+                # AI assessments successful = valid Lead IDs that were successfully analyzed
+                ai_assessments_successful = valid_lead_ids_count
                 
-                # AI assessments failed = invalid Lead IDs + AI processing failures
-                ai_assessments_failed = invalid_lead_ids_count + (valid_lead_ids_count - ai_assessments_successful)
+                # AI assessments failed = invalid Lead IDs (leads that couldn't be analyzed)
+                ai_assessments_failed = invalid_lead_ids_count
                 
                 summary_data = {
                     'total_lead_ids': total_lead_ids,  # Total rows in input Excel file
@@ -649,7 +649,7 @@ class ExcelService:
                 print(f"🔍 WARNING: No Salesforce summary data found, using calculated values")
                 
                 # Calculate AI assessments failed for fallback case
-                ai_assessments_failed = invalid_lead_ids_count + (valid_lead_ids_count - successful_ai_assessments)
+                ai_assessments_failed = invalid_lead_ids_count
                 
                 summary_data = {
                     'total_lead_ids': total_lead_ids,
@@ -660,7 +660,7 @@ class ExcelService:
                     'avg_confidence_score': round((total_confidence_score / successful_ai_assessments) if successful_ai_assessments > 0 else 0, 1),
                     'not_in_tam_count': not_in_tam_count,
                     'suspicious_enrichment_count': suspicious_enrichment_count,
-                    'ai_assessments_successful': successful_ai_assessments,
+                    'ai_assessments_successful': valid_lead_ids_count,
                     'ai_assessments_failed': ai_assessments_failed
                 }
             
