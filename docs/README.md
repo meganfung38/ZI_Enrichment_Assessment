@@ -254,4 +254,5 @@ All endpoints return standardized JSON:
 **Additional Resources:**
 - **[API Demo Video](https://drive.google.com/file/d/1G5kbyXztMqzkW44-von2Jbu0ZlHpYQ92/view?usp=sharing)** - Complete walkthrough and usage examples
 - **[Project Overview](project_breakdown.md)** - Requirements and specifications
-- **[AI Methodology](lead_data_interpretation.md)** - Scoring and assessment details 
+- **[AI Methodology](lead_data_interpretation.md)** - Scoring and assessment details
+- **[Sample Exports](https://docs.google.com/spreadsheets/d/1OCEN245W6ibXaq54XTOI43U-cL0DAXvV44UMEXX7myI/edit?usp=sharing)** - Example Excel reports (RingCentral employees only) 
