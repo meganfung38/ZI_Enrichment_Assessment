@@ -95,7 +95,6 @@ ZI_Enrichment_Assessment/
     ├── README.md                   # Detailed technical documentation
     ├── project_breakdown.md        # Requirements and specifications
     ├── lead_data_interpretation.md # AI methodology and scoring
-    └── sample_result.xlsx          # Example bulk analysis report (removed for privacy)
 ```
 
 ## Core Services
