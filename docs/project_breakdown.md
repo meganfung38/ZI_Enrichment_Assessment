@@ -69,3 +69,28 @@
 * Provide clear and concise explanations for why a particular confidence level was assigned  
 * Explanation layer should help build trust in the system and enable sales or operation teams to take actions accordingly  
 * A correction for incorrect fields
+
+### **Enhancing Current System**
+
+* Use Joseph’s rule based system as a layer of intelligence in the process of assessing lead enrichment  
+* Comparison between systems: 
+
+|  | Joseph’s System  | Megan’s System  |
+| :---- | :---- | :---- |
+| **Approach**  | Deterministic scoring using predefined rules and fuzzy matching  | Contextual analysis using AI with external validation (world knowledge)  |
+| **Components**  | 3 weighted pillars:  Acquisition 20% Enrichment 20%  Coherence 60% | Holistic assessment with explanation \+ corrections+ inferences |
+| **Scoring** | Math heavy– uses conditionals and weighted averages  | LLM judgement \+ uses business reasoning  |
+| **Validation** | Pattern matching, domain lists, phone regex, fuzzy string similarity  | External world knowledge \+ heuristic analysis |
+| **Consistency**  | 100% reproducible results– only uses rule based logic so scoring should mathematically be consistent everytime | Somewhat consistent– 0.1 temperature for more deterministic analysis but does not guarantee 100% consistency across scores |
+
+
+* Options: 
+
+| Option  | Combined Approach  | Benefits |
+| :---- | :---- | :---- |
+| Weighted Hybrid Scoring | Run both systems and retrieve scores  Apply weighted combination– Joseph’s system 40% \+ Megan’s system 60%  Re-compute explanation to draw a conclusion for the combined scoring \*\*save logs \+ explanations for both scores computed independently and combine reasoning in last step | Combines rule based consistency with AI contextual intelligence  Bridges gaps each system misses alone  Balances mathematical rules \+ business reasoning  Joseph’s system grounds/ prevents AI hallucinations  Adjustable– can adjust weights based on validation data and use cases  |
+| AI Enhanced Engine  | Leverage Joseph’s system as the primary scorer  Use current AI logic as a secondary validator. AI will be in charge of reviewing/ resolving rule based conflicts/ conclusions to provide adjustments 	 | Lead enrichment is assessed using deterministic rule based logic– more consistency across scores  Normalizes/ standardizes scoring logic  Focus AI power on addressing more complex cases that rule based logic cannot resolve  No AI hallucinations  Adjustable– can create conditional logic for what AI reviews |
+| Component Specific Integration  | Use Joseph’s system to validate all three pillars (acquisition, enrichment data coherence)  Use AI to handle contextual validation (external world knowledge, specific business logic)  Use weighted logic to compute a weighted final score 	 | Each system focuses on what it handles best (no overlap)  Easy to replace/ upgrade individual components  No confusion about which system handles what– easier to decipher scoring  Each component can be tuned independently  |
+| Dual Mode System | Run both systems and retrieve scores Build consensus logic to compare and combine results Instead of using weights, the scores will compete  Re-compute explanation to draw a conclusion for the combined scoring \*\*save logs \+ explanations for both scores computed independently and combine  | highlights/ identifies where the system disagrees and has logic to resolve conflicting conclusions  If one system fails to assess something accurately, the other provides fallback  |
+
+  
