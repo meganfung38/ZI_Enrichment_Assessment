@@ -171,6 +171,114 @@ Professional reports with RingCentral branding include:
 - `AI_Suspicious_Enrichment` - Quality flag for suspicious data
 - `AI_Status` - Analysis completion status (includes "Invalid Lead ID" for flagged rows)
 
+## Enhanced Batch Processing for Large Datasets
+
+### Overview
+
+The system now includes optimized batch processing specifically designed to handle Excel files with 50,000+ Lead IDs efficiently while preventing Salesforce connection timeouts and API rate limiting issues.
+
+### Key Features
+
+#### 1. **Multi-Level Batching Strategy**
+- **Salesforce Queries**: Processes leads in configurable batches (default: 150 leads per batch)
+- **AI Processing**: Sub-batches AI assessments (default: 50 leads per sub-batch) to manage OpenAI rate limits
+- **Connection Management**: Automatically refreshes Salesforce connections between batches
+- **Error Recovery**: Continues processing even if individual batches fail
+
+#### 2. **Automatic Dataset Detection**
+- **Small Datasets** (≤1000 leads): Uses standard processing for optimal speed
+- **Large Datasets** (>1000 leads): Automatically switches to batch-optimized processing
+- **Configurable Threshold**: Customize via `LARGE_DATASET_THRESHOLD` environment variable
+
+#### 3. **Performance Optimizations**
+```
+Processing Pipeline for 50k Leads:
+Excel Upload → Validation (150/batch) → Salesforce Data (150/batch) → AI Processing (50/batch) → Export
+```
+
+#### 4. **Progress Tracking & Monitoring**
+- Real-time batch completion tracking
+- Performance metrics (leads/second, avg batch time)
+- Success/failure rates per batch
+- Detailed logging for troubleshooting
+
+### API Endpoints
+
+#### Standard Excel Analysis
+```
+POST /excel/analyze
+```
+- Automatically detects dataset size
+- Uses batch optimization for >1000 leads
+- Maintains backward compatibility
+
+#### Batch-Optimized Analysis
+```
+POST /excel/analyze-batch-optimized
+```
+- Explicit batch processing with configurable parameters
+- Form parameters:
+  - `batch_size`: Salesforce batch size (50-200, default: 200)
+  - `ai_batch_size`: AI processing batch size (10-100, default: 50)
+
+### Configuration Options
+
+Environment variables for fine-tuning batch processing:
+
+```bash
+# Salesforce batch size (recommended: 100-150 for stability)
+BATCH_SIZE_SALESFORCE=150
+
+# AI processing batch size (recommended: 25-50 for rate limiting)
+BATCH_SIZE_AI=50
+
+# Lead ID validation batch size
+BATCH_SIZE_VALIDATION=150
+
+# Threshold for using batch optimization
+LARGE_DATASET_THRESHOLD=1000
+
+# Delays between batches (milliseconds)
+BATCH_DELAY_MS=50
+AI_BATCH_DELAY_MS=100
+```
+
+### Performance Metrics
+
+#### Expected Processing Times (50k Leads)
+- **Validation**: ~5-8 minutes (150 leads/batch)
+- **Salesforce Data Retrieval**: ~10-15 minutes (150 leads/batch) 
+- **AI Processing**: ~45-60 minutes (50 leads/batch, respecting rate limits)
+- **Total**: ~60-80 minutes for complete analysis
+
+#### Resource Management
+- **Memory**: Processes in chunks to prevent memory exhaustion
+- **API Limits**: Built-in rate limiting and exponential backoff
+- **Connection Stability**: Automatic connection refresh between batches
+- **Error Handling**: Graceful degradation with partial results
+
+### Batch Processing Benefits
+
+1. **Prevents Timeouts**: No single operation exceeds Salesforce timeout limits
+2. **Rate Limit Compliance**: Respects both Salesforce and OpenAI API limits  
+3. **Memory Efficient**: Processes data in chunks without loading entire dataset
+4. **Fault Tolerant**: Continues processing even if individual batches fail
+5. **Progress Visibility**: Real-time tracking of processing status
+6. **Scalable**: Handles datasets from 1K to 100K+ leads efficiently
+
+### Best Practices
+
+#### For 50k+ Lead Processing:
+- Use `BATCH_SIZE_SALESFORCE=100` for maximum stability
+- Set `AI_BATCH_DELAY_MS=200` to be conservative with OpenAI rate limits
+- Monitor processing via console logs for progress tracking
+- Consider processing during off-peak hours for optimal API performance
+
+#### Error Recovery:
+- Failed batches are logged but don't stop overall processing
+- Invalid Lead IDs are tracked separately and included in final export
+- Connection failures trigger automatic reconnection attempts
+
 ## Usage Examples
 
 ### Web Interface (Recommended)

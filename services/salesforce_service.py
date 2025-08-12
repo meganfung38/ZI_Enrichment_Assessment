@@ -1,6 +1,8 @@
 from simple_salesforce.api import Salesforce
 from config.config import Config, BAD_EMAIL_DOMAINS
 from typing import Optional
+import math
+import time
 
 
 class SalesforceService:
@@ -585,14 +587,14 @@ class SalesforceService:
             return []
     
     def validate_lead_ids(self, lead_ids):
-        """Validate that all provided Lead IDs exist in Salesforce"""
+        """Validate that all provided Lead IDs exist in Salesforce with optimized batch processing"""
         try:
             if not self.ensure_connection():
                 return None, "Failed to establish Salesforce connection"
             
             if not lead_ids:
                 return {'valid_lead_ids': [], 'invalid_lead_ids': []}, "No Lead IDs provided"
-            
+
 
             
             # Clean and validate Lead ID format first
@@ -616,51 +618,70 @@ class SalesforceService:
                     format_invalid_ids.append(lid_str)
             
             # If any Lead IDs have invalid format, return them as invalid
-            if format_invalid_ids:
-                print(f"🔍 Found {len(format_invalid_ids)} Lead IDs with invalid format: {format_invalid_ids}")
             
             # Query Salesforce to check which Lead IDs exist (only for format-valid IDs)
             valid_lead_ids = []
             sf_invalid_ids = []
             
             if cleaned_lead_ids:
-                # Process in batches to avoid SOQL query limits
-                batch_size = 200  # Salesforce IN clause limit
+                # Use smaller batch size for better reliability (reduce from 200 to 150)
+                batch_size = 150  # Conservative batch size for validation
+                total_batches = math.ceil(len(cleaned_lead_ids) / batch_size)
+                
                 for i in range(0, len(cleaned_lead_ids), batch_size):
+                    batch_num = i // batch_size + 1
                     batch = cleaned_lead_ids[i:i + batch_size]
-                    ids_string = "', '".join(batch)
-                    validation_query = f"SELECT Id FROM Lead WHERE Id IN ('{ids_string}')"
                     
-                    assert self.sf is not None  # Type hint for linter
-                    result = self.sf.query(validation_query)
-                    
-                    # Extract valid Lead IDs from this batch (in 18-char format from Salesforce)
-                    batch_valid_18char = [record['Id'] for record in result['records']]
-                    
-                    # Find which of our queried IDs actually exist in Salesforce
-                    # Only count IDs that we actually queried for as valid
-                    actual_valid_ids = []
-                    for clean_id in batch:
-                        if clean_id in batch_valid_18char:
-                            actual_valid_ids.append(clean_id)
-                            original_format = id_mapping.get(clean_id, clean_id)
-                            valid_lead_ids.append(original_format)
-                        else:
+                    try:
+                        # Ensure connection is still active
+                        if not self.ensure_connection():
+                            # Mark this batch as invalid for safety
+                            for clean_id in batch:
+                                original_format = id_mapping.get(clean_id, clean_id)
+                                sf_invalid_ids.append(original_format)
+                            continue
+                        
+                        ids_string = "', '".join(batch)
+                        validation_query = f"SELECT Id FROM Lead WHERE Id IN ('{ids_string}')"
+                        
+                        assert self.sf is not None  # Type hint for linter
+                        result = self.sf.query(validation_query)
+                        
+                        # Extract valid Lead IDs from this batch (in 18-char format from Salesforce)
+                        batch_valid_18char = [record['Id'] for record in result['records']]
+                        
+                        # Find which of our queried IDs actually exist in Salesforce
+                        # Only count IDs that we actually queried for as valid
+                        batch_valid_count = 0
+                        batch_invalid_count = 0
+                        
+                        for clean_id in batch:
+                            if clean_id in batch_valid_18char:
+                                original_format = id_mapping.get(clean_id, clean_id)
+                                valid_lead_ids.append(original_format)
+                                batch_valid_count += 1
+                            else:
+                                original_format = id_mapping.get(clean_id, clean_id)
+                                sf_invalid_ids.append(original_format)
+                                batch_invalid_count += 1
+                        
+
+                        
+                        # Small delay between validation batches
+                        if i + batch_size < len(cleaned_lead_ids):
+                            time.sleep(0.05)  # 50ms delay
+                            
+                    except Exception as e:
+                        # Mark this batch as invalid for safety
+                        for clean_id in batch:
                             original_format = id_mapping.get(clean_id, clean_id)
                             sf_invalid_ids.append(original_format)
-                    
-                    print(f"🔍 Batch {i//batch_size + 1}: {len(actual_valid_ids)} valid, {len(batch) - len(actual_valid_ids)} invalid out of {len(batch)} Lead IDs")
+                        continue
             
             # Combine all invalid Lead IDs (format issues + Salesforce not found)
             all_invalid_ids = format_invalid_ids + sf_invalid_ids
             
-            print(f"🔍 Lead ID validation results:")
-            print(f"   - Total provided: {len(lead_ids)}")
-            print(f"   - Format valid: {len(cleaned_lead_ids)}")
-            print(f"   - Format invalid: {len(format_invalid_ids)}")
-            print(f"   - Salesforce valid: {len(valid_lead_ids)}")
-            print(f"   - Salesforce invalid: {len(sf_invalid_ids)}")
-            print(f"   - 15-char conversions: {len([k for k, v in id_mapping.items() if len(v) == 15])}")
+
             
             return {
                 'valid_lead_ids': valid_lead_ids,
@@ -760,3 +781,231 @@ class SalesforceService:
             
         except Exception as e:
             return None, f"Error analyzing leads from IDs: {str(e)}" 
+
+    def analyze_leads_from_ids_batch_optimized(self, lead_ids, include_ai_assessment=True, batch_size=200, ai_batch_size=50, progress_callback=None):
+        """
+        Analyze leads from a list of Lead IDs with optimized batch processing for large datasets.
+        Handles 50k+ Lead IDs efficiently with proper chunking and connection management.
+        
+        Args:
+            lead_ids: List of Lead IDs to analyze
+            include_ai_assessment: Whether to include AI confidence assessment 
+            batch_size: Size of batches for Salesforce queries (default: 200, max SOQL IN clause)
+            ai_batch_size: Size of batches for AI processing (default: 50, for rate limiting)
+            progress_callback: Optional callback function for progress updates
+            
+        Returns:
+            result: Analysis results with summary and leads data
+            message: Status message
+        """
+        import time
+        import math
+        
+        start_time = time.time()
+        
+        try:
+            if not self.ensure_connection():
+                return None, "Failed to establish Salesforce connection"
+            
+            if not lead_ids:
+                return {
+                    'summary': {
+                        'leads_analyzed': 0,
+                        'leads_with_issues': 0,
+                        'not_in_tam_count': 0,
+                        'suspicious_enrichment_count': 0,
+                        'avg_confidence_score': 0,
+                        'processing_stats': {
+                            'total_batches': 0,
+                            'successful_batches': 0,
+                            'failed_batches': 0,
+                            'total_processing_time': 0
+                        }
+                    },
+                    'leads': []
+                }, "No Lead IDs provided"
+            
+            total_leads = len(lead_ids)
+            total_batches = math.ceil(total_leads / batch_size)
+            
+
+            
+            # Initialize tracking variables
+            analyzed_leads = []
+            leads_with_issues = 0
+            not_in_tam_count = 0
+            suspicious_enrichment_count = 0
+            total_confidence_score = 0
+            successful_ai_assessments = 0
+            successful_batches = 0
+            failed_batches = 0
+            
+            # Import here to avoid circular imports
+            if include_ai_assessment:
+                from services.openai_service import generate_lead_confidence_assessment
+            
+            # Process leads in batches
+            for batch_num in range(total_batches):
+                batch_start_time = time.time()
+                
+                # Calculate batch boundaries
+                start_idx = batch_num * batch_size
+                end_idx = min(start_idx + batch_size, total_leads)
+                batch_lead_ids = lead_ids[start_idx:end_idx]
+                
+                # Progress callback
+                if progress_callback:
+                    progress_callback({
+                        'phase': 'salesforce_data',
+                        'batch_num': batch_num + 1,
+                        'total_batches': total_batches,
+                        'current_batch_size': len(batch_lead_ids),
+                        'progress_percentage': round((batch_num / total_batches) * 100, 1),
+                        'leads_processed': start_idx,
+                        'total_leads': total_leads
+                    })
+                
+                try:
+                    # Ensure connection is still active (refresh if needed)
+                    if not self.ensure_connection():
+                        failed_batches += 1
+                        continue
+                    
+                    # Get Salesforce data for this batch
+                    batch_leads = self._analyze_lead_batch(batch_lead_ids, include_details=True)
+                    
+                    if not batch_leads:
+                        failed_batches += 1
+                        continue
+                    
+                    # Process AI assessments in smaller sub-batches to manage rate limits
+                    if include_ai_assessment and ai_batch_size < len(batch_leads):
+                        ai_batches = math.ceil(len(batch_leads) / ai_batch_size)
+                        
+                        for ai_batch_num in range(ai_batches):
+                            ai_start_idx = ai_batch_num * ai_batch_size
+                            ai_end_idx = min(ai_start_idx + ai_batch_size, len(batch_leads))
+                            ai_batch_leads = batch_leads[ai_start_idx:ai_end_idx]
+                            
+                            # Progress callback for AI processing
+                            if progress_callback:
+                                progress_callback({
+                                    'phase': 'ai_processing',
+                                    'batch_num': batch_num + 1,
+                                    'total_batches': total_batches,
+                                    'ai_batch_num': ai_batch_num + 1,
+                                    'ai_total_batches': ai_batches,
+                                    'progress_percentage': round(((batch_num + (ai_batch_num / ai_batches)) / total_batches) * 100, 1),
+                                    'leads_processed': start_idx + ai_start_idx,
+                                    'total_leads': total_leads
+                                })
+                            
+                            # Process AI assessments for this sub-batch
+                            for lead_data in ai_batch_leads:
+                                try:
+                                    # Generate AI confidence assessment
+                                    assessment, ai_message = generate_lead_confidence_assessment(lead_data)
+                                    if assessment and assessment.get('confidence_score') is not None:
+                                        lead_data['confidence_assessment'] = assessment
+                                        lead_data['ai_assessment_status'] = 'success'
+                                        total_confidence_score += assessment.get('confidence_score', 0)
+                                        successful_ai_assessments += 1
+                                    else:
+                                        lead_data['confidence_assessment'] = None
+                                        lead_data['ai_assessment_status'] = f'failed: {ai_message}'
+                                        
+                                except Exception as e:
+                                    lead_data['confidence_assessment'] = None
+                                    lead_data['ai_assessment_status'] = f'failed: {str(e)}'
+                            
+                            # Small delay between AI batches to respect rate limits
+                            if ai_batch_num < ai_batches - 1:  # Don't delay after last batch
+                                time.sleep(0.1)  # 100ms delay
+                    
+                    else:
+                        # Process AI assessments for entire batch (if small enough)
+                        if include_ai_assessment:
+                            for lead_data in batch_leads:
+                                try:
+                                    assessment, ai_message = generate_lead_confidence_assessment(lead_data)
+                                    if assessment and assessment.get('confidence_score') is not None:
+                                        lead_data['confidence_assessment'] = assessment
+                                        lead_data['ai_assessment_status'] = 'success'
+                                        total_confidence_score += assessment.get('confidence_score', 0)
+                                        successful_ai_assessments += 1
+                                    else:
+                                        lead_data['confidence_assessment'] = None
+                                        lead_data['ai_assessment_status'] = f'failed: {ai_message}'
+                                        
+                                except Exception as e:
+                                    lead_data['confidence_assessment'] = None
+                                    lead_data['ai_assessment_status'] = f'failed: {str(e)}'
+                    
+                    # Count quality issues for this batch
+                    for lead_data in batch_leads:
+                        if lead_data.get('not_in_TAM') or lead_data.get('suspicious_enrichment'):
+                            leads_with_issues += 1
+                        if lead_data.get('not_in_TAM'):
+                            not_in_tam_count += 1
+                        if lead_data.get('suspicious_enrichment'):
+                            suspicious_enrichment_count += 1
+                    
+                    # Add batch results to overall results
+                    analyzed_leads.extend(batch_leads)
+                    successful_batches += 1
+                    
+                    batch_time = time.time() - batch_start_time
+                    
+                    # Small delay between batches to prevent overwhelming APIs
+                    if batch_num < total_batches - 1:  # Don't delay after last batch
+                        time.sleep(0.05)  # 50ms delay
+                        
+                except Exception as e:
+                    failed_batches += 1
+                    continue
+            
+            execution_time = time.time() - start_time
+            avg_confidence_score = (total_confidence_score / successful_ai_assessments) if successful_ai_assessments > 0 else 0
+            
+            # Final progress callback
+            if progress_callback:
+                progress_callback({
+                    'phase': 'completed',
+                    'batch_num': total_batches,
+                    'total_batches': total_batches,
+                    'progress_percentage': 100,
+                    'leads_processed': len(analyzed_leads),
+                    'total_leads': total_leads,
+                    'execution_time': execution_time
+                })
+            
+            result = {
+                'summary': {
+                    'leads_analyzed': len(analyzed_leads),
+                    'leads_with_issues': leads_with_issues,
+                    'not_in_tam_count': not_in_tam_count,
+                    'suspicious_enrichment_count': suspicious_enrichment_count,
+                    'issue_percentage': round((leads_with_issues / len(analyzed_leads)) * 100, 2) if analyzed_leads else 0,
+                    'avg_confidence_score': round(avg_confidence_score, 1),
+                    'ai_assessments_successful': successful_ai_assessments,
+                    'ai_assessments_failed': len(analyzed_leads) - successful_ai_assessments,
+                    'processing_stats': {
+                        'total_batches': total_batches,
+                        'successful_batches': successful_batches,
+                        'failed_batches': failed_batches,
+                        'batch_size': batch_size,
+                        'ai_batch_size': ai_batch_size,
+                        'total_processing_time': round(execution_time, 2),
+                        'avg_batch_time': round(execution_time / total_batches, 2) if total_batches > 0 else 0,
+                        'leads_per_second': round(len(analyzed_leads) / execution_time, 2) if execution_time > 0 else 0
+                    }
+                },
+                'leads': analyzed_leads
+            }
+            
+
+            
+            return result, f"Successfully analyzed {len(analyzed_leads)} leads using optimized batch processing ({successful_batches}/{total_batches} batches successful)"
+            
+        except Exception as e:
+            return None, f"Error in optimized batch processing: {str(e)}" 

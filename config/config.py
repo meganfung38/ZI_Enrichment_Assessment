@@ -98,6 +98,14 @@ class Config:
     OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'gpt-3.5-turbo')
     OPENAI_MAX_TOKENS = int(os.getenv('OPENAI_MAX_TOKENS', '1000'))
     
+    # Batch Processing Configuration
+    BATCH_SIZE_SALESFORCE = int(os.getenv('BATCH_SIZE_SALESFORCE', '150'))  # Conservative default for Salesforce queries
+    BATCH_SIZE_AI = int(os.getenv('BATCH_SIZE_AI', '50'))  # Default for AI processing to manage rate limits
+    BATCH_SIZE_VALIDATION = int(os.getenv('BATCH_SIZE_VALIDATION', '150'))  # Default for Lead ID validation
+    LARGE_DATASET_THRESHOLD = int(os.getenv('LARGE_DATASET_THRESHOLD', '1000'))  # Threshold for using batch optimization
+    BATCH_DELAY_MS = int(os.getenv('BATCH_DELAY_MS', '50'))  # Delay between batches in milliseconds
+    AI_BATCH_DELAY_MS = int(os.getenv('AI_BATCH_DELAY_MS', '100'))  # Delay between AI batches in milliseconds
+    
     @staticmethod
     def validate_salesforce_config():
         """Validate that all required Salesforce credentials are present"""

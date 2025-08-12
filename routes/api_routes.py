@@ -28,7 +28,9 @@ def index():
             "get_lead": "/lead/<lead_id>",
             "query_leads": "/leads",
             "analyze_query": "/leads/analyze-query",
-            "lead_confidence": "/lead/<lead_id>/confidence"
+            "lead_confidence": "/lead/<lead_id>/confidence",
+            "excel_analyze": "/excel/analyze",
+            "excel_analyze_batch": "/excel/analyze-batch-optimized"
         }
     })
 
@@ -873,13 +875,20 @@ def analyze_excel_leads():
             }), 400
         
         # Proceed with analysis on valid Lead IDs only
-        print(f"🔍 Proceeding with {len(valid_lead_ids)} valid Lead IDs, skipping {len(invalid_lead_ids)} invalid IDs")
         
-        # Analyze the leads using the existing service method
-        # This only works with Salesforce data, not Excel data
-        result, message = sf_service.analyze_leads_from_ids(
-            valid_lead_ids, include_ai_assessment
-        )
+        # Choose analysis method based on dataset size
+        # Use batch-optimized processing for large datasets (>1000 leads)
+        if len(valid_lead_ids) > 1000:
+            result, message = sf_service.analyze_leads_from_ids_batch_optimized(
+                valid_lead_ids, 
+                include_ai_assessment=include_ai_assessment,
+                batch_size=150,  # Conservative batch size for large datasets
+                ai_batch_size=50  # Smaller AI batches for rate limiting
+            )
+        else:
+            result, message = sf_service.analyze_leads_from_ids(
+                valid_lead_ids, include_ai_assessment
+            )
         
         if result is None:
             return jsonify({
@@ -1119,4 +1128,179 @@ def test_lead_validation():
         return jsonify({
             'status': 'error',
             'message': f'Error testing Lead ID validation: {str(e)}'
+        }), 500
+
+@api_bp.route('/excel/analyze-batch-optimized', methods=['POST'])
+def analyze_excel_leads_batch_optimized():
+    """Analyze leads from Excel file upload using optimized batch processing for large datasets (50k+ leads)"""
+    try:
+        # Check if file is present
+        if 'file' not in request.files:
+            return jsonify({
+                'status': 'error',
+                'message': 'No file uploaded'
+            }), 400
+        
+        file = request.files['file']
+        
+        if file.filename == '':
+            return jsonify({
+                'status': 'error',
+                'message': 'No file selected'
+            }), 400
+        
+        # Get form data
+        sheet_name = request.form.get('sheet_name')
+        lead_id_column = request.form.get('lead_id_column')
+        batch_size = int(request.form.get('batch_size', 200))  # Salesforce batch size
+        ai_batch_size = int(request.form.get('ai_batch_size', 50))  # AI processing batch size
+        include_ai_assessment = True  # Always include AI assessment
+        
+        # Validate parameters
+        if not sheet_name:
+            return jsonify({
+                'status': 'error',
+                'message': 'Sheet name is required'
+            }), 400
+        
+        if not lead_id_column:
+            return jsonify({
+                'status': 'error',
+                'message': 'Lead ID column is required'
+            }), 400
+        
+        # Validate batch sizes
+        if batch_size < 50 or batch_size > 200:
+            return jsonify({
+                'status': 'error',
+                'message': 'batch_size must be between 50 and 200'
+            }), 400
+            
+        if ai_batch_size < 10 or ai_batch_size > 100:
+            return jsonify({
+                'status': 'error',
+                'message': 'ai_batch_size must be between 10 and 100'
+            }), 400
+        
+        # Read file content
+        file_content = file.read()
+        
+        # Extract Lead IDs from Excel
+        extraction_result = excel_service.extract_lead_ids_from_excel(
+            file_content, sheet_name, lead_id_column
+        )
+        
+        if not extraction_result['success']:
+            return jsonify({
+                'status': 'error',
+                'message': extraction_result['error']
+            }), 400
+        
+        lead_ids = extraction_result['lead_ids']
+        
+        if not lead_ids:
+            return jsonify({
+                'status': 'error',
+                'message': f'No valid Lead IDs found in column "{lead_id_column}"'
+            }), 400
+        
+
+        
+        # Validate Lead IDs with Salesforce (using optimized validation)
+        validation_result, validation_message = sf_service.validate_lead_ids(lead_ids)
+        
+        if validation_result is None:
+            return jsonify({
+                'status': 'error',
+                'message': validation_message
+            }), 500
+        
+        # Get valid and invalid Lead IDs
+        valid_lead_ids = validation_result.get('valid_lead_ids', [])
+        invalid_lead_ids = validation_result.get('invalid_lead_ids', [])
+        
+        # Check if we have any valid Lead IDs to analyze
+        if not valid_lead_ids:
+            return jsonify({
+                'status': 'error',
+                'message': f'No valid Lead IDs found. All {len(invalid_lead_ids)} Lead IDs are invalid.',
+                'invalid_lead_ids': invalid_lead_ids
+            }), 400
+        
+
+        
+        # Progress tracking variables (in a real implementation, this would be stored in Redis/database)
+        progress_data = {
+            'phase': 'starting',
+            'total_leads': len(valid_lead_ids),
+            'leads_processed': 0,
+            'batches_completed': 0,
+            'progress_percentage': 0
+        }
+        
+        def progress_callback(update):
+            """Callback function to track progress (could be enhanced with WebSocket/SSE)"""
+            progress_data.update(update)
+        
+        # Analyze the leads using optimized batch processing
+        result, message = sf_service.analyze_leads_from_ids_batch_optimized(
+            valid_lead_ids, 
+            include_ai_assessment=include_ai_assessment,
+            batch_size=batch_size,
+            ai_batch_size=ai_batch_size,
+            progress_callback=progress_callback
+        )
+        
+        if result is None:
+            return jsonify({
+                'status': 'error',
+                'message': message
+            }), 500
+        
+        # Store original Excel data and validation info for export
+        result['excel_metadata'] = {
+            'lead_id_column': lead_id_column,
+            'sheet_name': sheet_name,
+            'filename': file.filename,
+            'has_original_data': True,
+            'batch_processing_config': {
+                'salesforce_batch_size': batch_size,
+                'ai_batch_size': ai_batch_size,
+                'total_batches': result['summary']['processing_stats']['total_batches'],
+                'successful_batches': result['summary']['processing_stats']['successful_batches'],
+                'failed_batches': result['summary']['processing_stats']['failed_batches']
+            },
+            'validation_summary': {
+                'total_lead_ids': len(lead_ids),
+                'valid_lead_ids': len(valid_lead_ids),
+                'invalid_lead_ids': len(invalid_lead_ids),
+                'invalid_lead_ids_list': invalid_lead_ids
+            }
+        }
+        
+        return jsonify({
+            'status': 'success',
+            'message': f"{message} (Skipped {len(invalid_lead_ids)} invalid Lead IDs)",
+            'data': result,
+            'validation_summary': {
+                'total_lead_ids': len(lead_ids),
+                'valid_lead_ids': len(valid_lead_ids),
+                'invalid_lead_ids': len(invalid_lead_ids),
+                'invalid_lead_ids_list': invalid_lead_ids
+            },
+            'performance_metrics': {
+                'total_processing_time': result['summary']['processing_stats']['total_processing_time'],
+                'leads_per_second': result['summary']['processing_stats']['leads_per_second'],
+                'avg_batch_time': result['summary']['processing_stats']['avg_batch_time'],
+                'batch_success_rate': round(
+                    (result['summary']['processing_stats']['successful_batches'] / 
+                     result['summary']['processing_stats']['total_batches']) * 100, 2
+                ) if result['summary']['processing_stats']['total_batches'] > 0 else 0
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Error in batch-optimized Excel analysis: {str(e)}'
         }), 500
