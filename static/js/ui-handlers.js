@@ -8,6 +8,117 @@ let excelFileData = null;
 let excelPreviewData = null;
 let excelAnalysisResults = null;
 
+// Function to generate HTML for single lead with collapsible toggles
+function generateSingleLeadHTML(lead, assessment, isEven = true) {
+    const finalScore = (lead.acquisition_completeness_score && lead.enrichment_completeness_score && assessment && assessment.confidence_score) ?
+        Math.round((lead.acquisition_completeness_score * 0.15) + (lead.enrichment_completeness_score * 0.15) + (assessment.confidence_score * 0.70)) : null;
+
+    const backgroundClass = isEven ? 'lead-container-even' : 'lead-container-odd';
+    
+    return `<div class="lead-container ${backgroundClass}"><h3 class="lead-header">Lead Analysis: ${lead.Id || 'N/A'}</h3>
+<div class="toggle-section"><button class="toggle-header" onclick="toggleSection(this)">Lead Data<span class="toggle-icon">▶</span></button><div class="toggle-content"><div class="data-row">First Name: ${lead.FirstName || 'N/A'}</div><div class="data-row">Last Name: ${lead.LastName || 'N/A'}</div><div class="data-row">Phone: ${lead.Phone || 'N/A'}</div><div class="data-row">Country: ${lead.Country || 'N/A'}</div><div class="data-row">Title: ${lead.Title || 'N/A'}</div><div class="data-row">Industry: ${lead.Industry || 'N/A'}</div><div class="data-row">Email: ${lead.Email || 'N/A'}</div><div class="data-row">First Channel: ${lead.First_Channel__c || 'N/A'}</div><div class="data-row">Segment: ${lead.SegmentName || 'N/A'}</div><div class="data-row">Company Size Range: ${lead.LS_Company_Size_Range__c || 'N/A'}</div><div class="data-row">Website: ${lead.Website || 'N/A'}</div><div class="data-row">Company: ${lead.Company || 'N/A'}</div><div class="data-row">ZI Company: ${lead.ZI_Company_Name__c || 'N/A'}</div><div class="data-row">ZI Employees: ${lead.ZI_Employees__c || 'N/A'}</div><div class="data-row">ZI Website: ${lead.ZI_Website__c || 'N/A'}</div><div class="data-row">Email Domain: ${lead.email_domain || 'N/A'}</div></div></div>
+<div class="toggle-section"><button class="toggle-header" onclick="toggleSection(this)">Quality Flags<span class="toggle-icon">▶</span></button><div class="toggle-content"><div class="flag-item">Not in TAM: ${lead.not_in_TAM ? 'Yes' : 'No'}</div><div class="flag-item">Suspicious Enrichment: ${lead.suspicious_enrichment ? 'Yes' : 'No'}</div></div></div>
+<div class="toggle-section"><button class="toggle-header active" onclick="toggleSection(this)">Assessment Scores<span class="toggle-icon">▼</span></button><div class="toggle-content active"><div class="score-section"><div class="score-title">🎯 Acquisition Completeness: ${lead.acquisition_completeness_score || 'N/A'}%</div><div class="score-explanation">${generateAcquisitionExplanation(lead)}</div></div>
+
+<div class="score-section"><div class="score-title">🔍 Enrichment Completeness: ${lead.enrichment_completeness_score || 'N/A'}%</div><div class="score-explanation">${generateEnrichmentExplanation(lead)}</div></div>
+
+<div class="score-section"><div class="score-title">🤖 AI Coherence Score: ${assessment ? (assessment.confidence_score || 'N/A') : 'N/A'}</div>${assessment && assessment.explanation_bullets && assessment.explanation_bullets.length > 0 ? `<div class="ai-bullets">AI Explanation:${assessment.explanation_bullets.map(bullet => `<div class="ai-bullet">• ${bullet}</div>`).join('')}</div>` : ''}${assessment && assessment.corrections && Object.keys(assessment.corrections).length > 0 ? `<div class="corrections">Corrections:${Object.entries(assessment.corrections).map(([field, value]) => `<div class="correction-item">${field}: ${value}</div>`).join('')}</div>` : ''}${assessment && assessment.inferences && Object.keys(assessment.inferences).length > 0 ? `<div class="inferences">Inferences:${Object.entries(assessment.inferences).map(([field, value]) => `<div class="inference-item">${field}: ${value}</div>`).join('')}</div>` : ''}</div>
+
+<div class="final-score final-score-bold">🏆 Final Confidence Score: ${finalScore || 'N/A'}% (Weighted: 15% + 15% + 70%)</div></div></div></div>`;
+}
+
+// Function to toggle collapsible sections
+function toggleSection(button) {
+    const content = button.nextElementSibling;
+    const icon = button.querySelector('.toggle-icon');
+    
+    if (content.classList.contains('active')) {
+        content.classList.remove('active');
+        icon.textContent = '▶';
+    } else {
+        content.classList.add('active');
+        icon.textContent = '▼';
+    }
+}
+
+// Function to generate detailed acquisition score explanation
+function generateAcquisitionExplanation(lead) {
+    if (!lead.joseph_scoring_details || !lead.joseph_scoring_details.acquisition_completeness || 
+        !lead.joseph_scoring_details.acquisition_completeness.details || 
+        !lead.joseph_scoring_details.acquisition_completeness.details.field_scores) {
+        return "Individual field scores not available";
+    }
+    
+    const fieldScores = lead.joseph_scoring_details.acquisition_completeness.details.field_scores;
+    const scoreEntries = [];
+    
+    // Map field score keys to readable names
+    const fieldMapping = {
+        'first_name_score': 'First Name',
+        'last_name_score': 'Last Name', 
+        'email_domain_score': 'Email Domain',
+        'phone_score': 'Phone',
+        'state_province_score': 'State',
+        'country_score': 'Country',
+        'sector_score': 'Industry',
+        'company_score': 'Company',
+        'website_domain_score': 'Website'
+    };
+    
+    Object.entries(fieldScores).forEach(([key, score]) => {
+        if (fieldMapping[key]) {
+            scoreEntries.push(`${fieldMapping[key]}: ${score}%`);
+        }
+    });
+    
+    return scoreEntries.length > 0 ? scoreEntries.join(', ') : "No field scores available";
+}
+
+// Function to generate detailed enrichment score explanation  
+function generateEnrichmentExplanation(lead) {
+    if (!lead.joseph_scoring_details || !lead.joseph_scoring_details.enrichment_completeness || 
+        !lead.joseph_scoring_details.enrichment_completeness.details || 
+        !lead.joseph_scoring_details.enrichment_completeness.details.field_scores) {
+        return "Individual field scores not available";
+    }
+    
+    const fieldScores = lead.joseph_scoring_details.enrichment_completeness.details.field_scores;
+    const scoreEntries = [];
+    
+    // Map field score keys to readable names
+    const fieldMapping = {
+        'account_name_zi_cdp_score': 'ZI Account Name',
+        'zi_company_name_score': 'ZI Company Name',
+        'zi_website_domain_score': 'ZI Website',
+        'zi_company_state_score': 'ZI State',
+        'zi_company_country_score': 'ZI Country',
+        'zi_employees_score': 'ZI Employees'
+    };
+    
+    Object.entries(fieldScores).forEach(([key, score]) => {
+        if (fieldMapping[key]) {
+            scoreEntries.push(`${fieldMapping[key]}: ${score}%`);
+        }
+    });
+    
+    return scoreEntries.length > 0 ? scoreEntries.join(', ') : "No field scores available";
+}
+
+// Function to generate HTML for batch results (SOQL Query and Excel)
+function generateBatchResultsHTML(leads, summary) {
+    let batchHTML = `<div style="margin-bottom: 10px; padding: 10px; background-color: #e8f5e8;"><h3 style="margin: 0;">✅ Batch Analysis Complete!</h3><p style="margin: 0;"><strong>Processed ${leads.length} leads successfully</strong></p></div>
+
+<div class="lead-container summary-container"><h3 class="lead-header">📊 Summary Statistics</h3><div class="toggle-section"><button class="toggle-header active" onclick="toggleSection(this)">Overall Scores<span class="toggle-icon">▼</span></button><div class="toggle-content active"><div class="score-section"><div class="score-title">Average Acquisition Score: ${summary.avgAcquisition || 'N/A'}</div></div><div class="score-section"><div class="score-title">Average Enrichment Score: ${summary.avgEnrichment || 'N/A'}</div></div><div class="score-section"><div class="score-title">Average AI Coherence Score: ${summary.avgConfidence || 'N/A'}</div></div><div class="final-score final-score-bold">🏆 Average Final Confidence Score: ${summary.avgFinal || 'N/A'} (Weighted: 15% + 15% + 70%)</div></div></div></div>`;
+
+    // Add individual lead results with alternating backgrounds
+    leads.forEach((lead, index) => {
+        const isEven = index % 2 === 0;
+        batchHTML += generateSingleLeadHTML(lead, lead.confidence_assessment, isEven);
+    });
+
+    return batchHTML;
+}
+
 // Initialize event handlers when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
     initializeEventHandlers();
@@ -178,67 +289,33 @@ async function handleQueryFormSubmit(e) {
             const leads = data.data.leads;
             const queryInfo = data.data.query_info;
             
-            // Display summary and individual lead results
-            let output = `✅ SOQL Query Analysis Complete!\n\n📊 Summary:\n- Total query results: ${summary.total_query_results}\n- Leads analyzed: ${summary.leads_analyzed}\n- Leads with issues: ${summary.leads_with_issues} (${summary.issue_percentage}%)\n- Average confidence score: ${summary.avg_confidence_score}\n- AI assessments successful: ${summary.ai_assessments_successful}\n- AI assessments failed: ${summary.ai_assessments_failed}\n\n`;
+            // Calculate hybrid scoring averages
+            let acquisitionScores = [];
+            let enrichmentScores = [];
+            let overallScores = [];
             
-            if (queryInfo) {
-                output += `🔍 Query Info:\n- Execution time: ${queryInfo.execution_time}\n- Total found: ${queryInfo.total_found}\n- Analyzed count: ${queryInfo.analyzed_count}\n`;
-                if (queryInfo.skipped_count > 0) {
-                    output += `- Skipped count: ${queryInfo.skipped_count}\n`;
+            leads.forEach(lead => {
+                if (lead.acquisition_completeness_score) acquisitionScores.push(lead.acquisition_completeness_score);
+                if (lead.enrichment_completeness_score) enrichmentScores.push(lead.enrichment_completeness_score);
+                if (lead.acquisition_completeness_score && lead.enrichment_completeness_score && lead.confidence_assessment && lead.confidence_assessment.confidence_score) {
+                    const finalScore = Math.round((lead.acquisition_completeness_score * 0.15) + (lead.enrichment_completeness_score * 0.15) + (lead.confidence_assessment.confidence_score * 0.70));
+                    overallScores.push(finalScore);
                 }
-                output += `\n`;
-            }
-            
-            output += `Ready to export results!\n\n`;
-            output += `🔍 Individual Lead Results:\n${'='.repeat(50)}\n\n`;
-            
-            leads.forEach((lead, index) => {
-                output += `Lead ${index + 1}: ${lead.Id}\n`;
-                output += `Email: ${lead.Email || 'N/A'}\n`;
-                output += `First Channel: ${lead.First_Channel__c || 'N/A'}\n`;
-                output += `Segment: ${lead.SegmentName || 'N/A'}\n`;
-                output += `Company Size Range: ${lead.LS_Company_Size_Range__c || 'N/A'}\n`;
-                output += `Website: ${lead.Website || 'N/A'}\n`;
-                output += `Company: ${lead.Company || 'N/A'}\n`;
-                output += `ZI Company: ${lead.ZI_Company_Name__c || 'N/A'}\n`;
-                output += `ZI Employees: ${lead.ZI_Employees__c || 'N/A'}\n`;
-                output += `ZI Website: ${lead.ZI_Website__c || 'N/A'}\n`;
-                output += `Email Domain: ${lead.email_domain || 'N/A'}\n`;
-                output += `Not in TAM: ${lead.not_in_TAM ? 'Yes' : 'No'}\n`;
-                output += `Suspicious Enrichment: ${lead.suspicious_enrichment ? 'Yes' : 'No'}\n`;
-                
-                if (lead.confidence_assessment) {
-                    const assessment = lead.confidence_assessment;
-                    output += `Confidence Score: ${assessment.confidence_score || 'N/A'}\n`;
-                    
-                    if (assessment.explanation_bullets && assessment.explanation_bullets.length > 0) {
-                        output += `Explanation:\n`;
-                        assessment.explanation_bullets.forEach(bullet => {
-                            output += `  • ${bullet}\n`;
-                        });
-                    }
-                    
-                    if (assessment.corrections && Object.keys(assessment.corrections).length > 0) {
-                        output += `Corrections:\n`;
-                        Object.entries(assessment.corrections).forEach(([field, value]) => {
-                            output += `  • ${field}: ${value}\n`;
-                        });
-                    }
-                    
-                    if (assessment.inferences && Object.keys(assessment.inferences).length > 0) {
-                        output += `Inferences:\n`;
-                        Object.entries(assessment.inferences).forEach(([field, value]) => {
-                            output += `  • ${field}: ${value}\n`;
-                        });
-                    }
-                } else {
-                    output += `AI Assessment: ${lead.ai_assessment_status || 'Failed'}\n`;
-                }
-                
-                output += `\n${'-'.repeat(40)}\n\n`;
             });
             
-            responseDiv.innerHTML = output;
+            const avgAcquisition = acquisitionScores.length > 0 ? Math.round(acquisitionScores.reduce((a, b) => a + b, 0) / acquisitionScores.length) : 'N/A';
+            const avgEnrichment = enrichmentScores.length > 0 ? Math.round(enrichmentScores.reduce((a, b) => a + b, 0) / enrichmentScores.length) : 'N/A';
+            const avgFinal = overallScores.length > 0 ? Math.round(overallScores.reduce((a, b) => a + b, 0) / overallScores.length) : 'N/A';
+            
+            // Generate collapsible HTML structure for batch results
+            const summaryData = {
+                avgAcquisition: avgAcquisition,
+                avgEnrichment: avgEnrichment,
+                avgConfidence: summary.avg_confidence_score,
+                avgFinal: avgFinal
+            };
+            
+            responseDiv.innerHTML = generateBatchResultsHTML(leads, summaryData);
             responseDiv.className = 'response success';
             document.getElementById('exportBtn').disabled = false;
         } else {
@@ -339,59 +416,8 @@ async function handleConfidenceFormSubmit(e) {
             const lead = data.lead_data;  // Fixed: use lead_data instead of data
             const assessment = data.confidence_assessment;  // Get assessment from top level
             
-            // Display single lead analysis results
-            let output = `✅ Single Lead Analysis Complete!\n\n`;
-            output += `🔍 Lead Details:\n${'='.repeat(30)}\n`;
-            output += `Lead ID: ${lead.Id}\n`;
-            output += `Email: ${lead.Email || 'N/A'}\n`;
-            output += `First Channel: ${lead.First_Channel__c || 'N/A'}\n`;
-            output += `Segment: ${lead.SegmentName || 'N/A'}\n`;
-            output += `Company Size Range: ${lead.LS_Company_Size_Range__c || 'N/A'}\n`;
-            output += `Website: ${lead.Website || 'N/A'}\n`;
-            output += `Company: ${lead.Company || 'N/A'}\n`;
-            output += `ZI Company: ${lead.ZI_Company_Name__c || 'N/A'}\n`;
-            output += `ZI Employees: ${lead.ZI_Employees__c || 'N/A'}\n`;
-            output += `ZI Website: ${lead.ZI_Website__c || 'N/A'}\n`;
-            output += `Email Domain: ${lead.email_domain || 'N/A'}\n\n`;
-            
-            output += `🚩 Quality Flags:\n`;
-            output += `Not in TAM: ${lead.not_in_TAM ? 'Yes' : 'No'}\n`;
-            output += `Suspicious Enrichment: ${lead.suspicious_enrichment ? 'Yes' : 'No'}\n\n`;
-            
-            if (assessment) {
-                output += `🤖 AI Assessment:\n${'='.repeat(30)}\n`;
-                output += `Confidence Score: ${assessment.confidence_score || 'N/A'}\n\n`;
-                
-                if (assessment.explanation_bullets && assessment.explanation_bullets.length > 0) {
-                    output += `📝 Explanation:\n`;
-                    assessment.explanation_bullets.forEach(bullet => {
-                        output += `  • ${bullet}\n`;
-                    });
-                    output += `\n`;
-                }
-                
-                if (assessment.corrections && Object.keys(assessment.corrections).length > 0) {
-                    output += `🔧 Corrections:\n`;
-                    Object.entries(assessment.corrections).forEach(([field, value]) => {
-                        output += `  • ${field}: ${value}\n`;
-                    });
-                    output += `\n`;
-                }
-                
-                if (assessment.inferences && Object.keys(assessment.inferences).length > 0) {
-                    output += `💡 Inferences:\n`;
-                    Object.entries(assessment.inferences).forEach(([field, value]) => {
-                        output += `  • ${field}: ${value}\n`;
-                    });
-                    output += `\n`;
-                }
-            } else {
-                output += `🤖 AI Assessment: Failed\n\n`;
-            }
-            
-            output += `Ready to export results!`;
-            
-            responseDiv.innerHTML = output;
+            // Generate collapsible HTML structure
+            responseDiv.innerHTML = generateSingleLeadHTML(lead, assessment);
             responseDiv.className = 'response success';
             document.getElementById('exportConfidenceBtn').disabled = false;
         } else {
@@ -735,57 +761,33 @@ async function handleAnalyzeExcel(e) {
             // AI assessments failed = invalid Lead IDs (leads that couldn't be analyzed)
             const aiAssessmentsFailed = invalidLeadIds;
             
-            let output = `✅ Analysis complete!\n\n📊 Summary:\n- Total Lead IDs: ${totalLeadIds}\n- Valid Lead IDs: ${validLeadIds}\n- Invalid Lead IDs: ${invalidLeadIds}\n- Leads with issues: ${summary.leads_with_issues} (${summary.issue_percentage}%)\n- Average confidence score: ${summary.avg_confidence_score}\n- AI assessments successful: ${aiAssessmentsSuccessful}\n- AI assessments failed: ${aiAssessmentsFailed}\n\nReady to export results!\n\n`;
+            // Calculate hybrid scoring averages for Excel results
+            let acquisitionScores = [];
+            let enrichmentScores = [];
+            let overallScores = [];
             
-            output += `🔍 Individual Lead Results:\n${'='.repeat(50)}\n\n`;
-            
-            leads.forEach((lead, index) => {
-                output += `Lead ${index + 1}: ${lead.Id}\n`;
-                output += `Email: ${lead.Email || 'N/A'}\n`;
-                output += `First Channel: ${lead.First_Channel__c || 'N/A'}\n`;
-                output += `Segment: ${lead.SegmentName || 'N/A'}\n`;
-                output += `Company Size Range: ${lead.LS_Company_Size_Range__c || 'N/A'}\n`;
-                output += `Website: ${lead.Website || 'N/A'}\n`;
-                output += `Company: ${lead.Company || 'N/A'}\n`;
-                output += `ZI Company: ${lead.ZI_Company_Name__c || 'N/A'}\n`;
-                output += `ZI Employees: ${lead.ZI_Employees__c || 'N/A'}\n`;
-                output += `ZI Website: ${lead.ZI_Website__c || 'N/A'}\n`;
-                output += `Email Domain: ${lead.email_domain || 'N/A'}\n`;
-                output += `Not in TAM: ${lead.not_in_TAM ? 'Yes' : 'No'}\n`;
-                output += `Suspicious Enrichment: ${lead.suspicious_enrichment ? 'Yes' : 'No'}\n`;
-                
-                if (lead.confidence_assessment) {
-                    const assessment = lead.confidence_assessment;
-                    output += `Confidence Score: ${assessment.confidence_score || 'N/A'}\n`;
-                    
-                    if (assessment.explanation_bullets && assessment.explanation_bullets.length > 0) {
-                        output += `Explanation:\n`;
-                        assessment.explanation_bullets.forEach(bullet => {
-                            output += `  • ${bullet}\n`;
-                        });
-                    }
-                    
-                    if (assessment.corrections && Object.keys(assessment.corrections).length > 0) {
-                        output += `Corrections:\n`;
-                        Object.entries(assessment.corrections).forEach(([field, value]) => {
-                            output += `  • ${field}: ${value}\n`;
-                        });
-                    }
-                    
-                    if (assessment.inferences && Object.keys(assessment.inferences).length > 0) {
-                        output += `Inferences:\n`;
-                        Object.entries(assessment.inferences).forEach(([field, value]) => {
-                            output += `  • ${field}: ${value}\n`;
-                        });
-                    }
-                } else {
-                    output += `AI Assessment: ${lead.ai_assessment_status || 'Failed'}\n`;
+            leads.forEach(lead => {
+                if (lead.acquisition_completeness_score) acquisitionScores.push(lead.acquisition_completeness_score);
+                if (lead.enrichment_completeness_score) enrichmentScores.push(lead.enrichment_completeness_score);
+                if (lead.acquisition_completeness_score && lead.enrichment_completeness_score && lead.confidence_assessment && lead.confidence_assessment.confidence_score) {
+                    const finalScore = Math.round((lead.acquisition_completeness_score * 0.15) + (lead.enrichment_completeness_score * 0.15) + (lead.confidence_assessment.confidence_score * 0.70));
+                    overallScores.push(finalScore);
                 }
-                
-                output += `\n${'-'.repeat(40)}\n\n`;
             });
             
-            responseDiv.innerHTML = output;
+            const avgAcquisition = acquisitionScores.length > 0 ? Math.round(acquisitionScores.reduce((a, b) => a + b, 0) / acquisitionScores.length) : 'N/A';
+            const avgEnrichment = enrichmentScores.length > 0 ? Math.round(enrichmentScores.reduce((a, b) => a + b, 0) / enrichmentScores.length) : 'N/A';
+            const avgFinal = overallScores.length > 0 ? Math.round(overallScores.reduce((a, b) => a + b, 0) / overallScores.length) : 'N/A';
+            
+            // Generate collapsible HTML structure for Excel batch results
+            const summaryData = {
+                avgAcquisition: avgAcquisition,
+                avgEnrichment: avgEnrichment,
+                avgConfidence: summary.avg_confidence_score,
+                avgFinal: avgFinal
+            };
+            
+            responseDiv.innerHTML = generateBatchResultsHTML(leads, summaryData);
             responseDiv.className = 'response success';
             document.getElementById('exportExcelBtn').disabled = false;
         } else {

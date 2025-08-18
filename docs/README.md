@@ -1,6 +1,6 @@
 # ZoomInfo Enrichment Quality Assessment API Documentation
 
-A Flask API for assessing the quality and reliability of ZoomInfo-enriched lead data with OpenAI-powered confidence scoring and professional Excel export capabilities.
+A Flask API for assessing the quality and reliability of ZoomInfo-enriched lead data with hybrid scoring system combining rule-based completeness assessment and AI-powered coherence analysis.
 
 ## Setup
 
@@ -46,32 +46,51 @@ Access the web interface at `http://localhost:5000/ui`
 ### Core Services
 
 **SalesforceService** (`services/salesforce_service.py`)
-- Lead data retrieval with 11+ enrichment fields
+- Lead data retrieval with expanded field set (personal and business data)
 - Complex SOQL query support with security validation
-- Quality flag computation (`not_in_TAM`, `suspicious_enrichment`)
+- Quality flag computation and Joseph's system integration
 - Optimized batch processing with robust Lead ID handling (15 ↔ 18 character conversion)
 
+**JosephScoringWrapper** (`services/joseph_wrapper.py`)
+- Rule-based acquisition completeness scoring (9 fields)
+- Weighted enrichment completeness scoring (6 ZoomInfo fields)
+- Data transformation and reference dataset integration
+- Segment-aware scoring logic with dependency loading
+
 **OpenAIService** (`services/openai_service.py`)
-- AI-powered confidence scoring (0-100) with detailed explanations
-- Intelligent corrections and inferences based on contextual analysis
+- AI coherence assessment for data consistency and reliability
+- Intelligent corrections and inferences with mandatory external validation
 - Advanced redundancy validation to prevent duplicate suggestions
-- Contextual prompt engineering for accurate assessments
-- Free email domain filtering and website accessibility validation
+- Contextual prompt engineering with external knowledge requirements
 
 **ExcelService** (`services/excel_service.py`)
-- Professional report generation with RingCentral branding and color-coding
-- Multiple export formats (single lead, bulk analysis, Excel upload)
-- Robust Lead ID matching with automatic format conversion
-- Summary statistics and individual lead details with AI explanations
+- Four-score export system with differentiated color coding
+- Complete personal/business data export (27 columns)
+- Professional RingCentral branding with score-specific formatting
+- Summary statistics and detailed explanations for all scoring components
 
 ### Project Structure
 ```
 ZI_Enrichment_Assessment/
 ├── app.py                    # Main Flask application (MVC pattern)
-├── templates/ui.html         # Interactive web interface
+├── templates/
+│   └── ui.html               # Interactive web interface
 ├── static/                   # Frontend assets with RingCentral theming
+│   ├── css/
+│   │   └── ringcentral-theme.css
+│   └── js/
+│       └── ui-handlers.js
 ├── config/                   # Configuration and environment management
 ├── services/                 # Core business logic services
+│   ├── salesforce_service.py
+│   ├── openai_service.py
+│   ├── excel_service.py
+│   ├── joseph_wrapper.py     # Integration adapter
+│   └── joseph_system/        # Rule-based scoring system
+│       ├── acquisition_completeness_score.py
+│       ├── enrichment_completeness_score.py
+│       ├── completeness_dependency_loader.py
+│       └── dependencies/     # Reference CSV files
 ├── routes/                   # RESTful API endpoints with export functionality
 └── docs/                     # Technical documentation and samples
 ```
@@ -85,16 +104,16 @@ ZI_Enrichment_Assessment/
 
 ### Lead Analysis
 - `GET /lead/<lead_id>` - Get basic lead data with quality flags
-- `GET /lead/<lead_id>/confidence` - **AI-powered confidence assessment**
+- `GET /lead/<lead_id>/confidence` - **Hybrid assessment with rule-based and AI scoring**
 
 ### Bulk Analysis
 - `POST /leads/preview-query` - Preview SOQL query results
-- `POST /leads/analyze-query` - **Bulk analysis with AI scoring**
+- `POST /leads/analyze-query` - **Bulk analysis with hybrid scoring system**
 
 ### Excel Upload Workflow
 - `POST /excel/parse` - Parse uploaded Excel file and extract headers
 - `POST /excel/validate-lead-ids` - Validate Lead IDs with partial validation support
-- `POST /excel/analyze` - **Analyze leads from Excel upload with AI assessment (handles invalid Lead IDs)**
+- `POST /excel/analyze` - **Analyze leads from Excel upload with hybrid assessment (handles invalid Lead IDs)**
 
 ### Export Endpoints (Cached Results)
 - `POST /leads/export-analysis-data` - Export bulk analysis results to Excel
@@ -125,16 +144,50 @@ The system analyzes 11+ core fields for comprehensive cross-validation:
 - `not_in_TAM` - Quality flag for missing enrichment on large companies
 - `suspicious_enrichment` - Quality flag for potentially incorrect data
 
-### AI Assessment Output
-- `confidence_score` - Overall reliability rating (0-100)
-- `explanation_bullets` - Clear explanations with emoji indicators
-- `corrections` - High-confidence fixes (≥80% confidence) with website validation
-- `inferences` - Lower-confidence suggestions (≥40% confidence) with accessibility checks
+### Hybrid Assessment Output
+- `acquisition_completeness_score` - Rule-based scoring for original lead data (0-100)
+- `enrichment_completeness_score` - Rule-based scoring for ZoomInfo enrichment (0-100)
+- `confidence_score` - AI coherence assessment for data consistency (0-100)
+- `final_confidence_score` - Weighted final score (15% + 15% + 70%)
+- `explanation_bullets` - Clear explanations with emoji indicators and external validation
+- `corrections` - High-confidence fixes with website validation
+- `inferences` - Lower-confidence suggestions with accessibility checks
+
+## Scoring System Detailed Overview
+
+### **Acquisition Completeness Score (Rule-Based - Joseph's System)**
+Evaluates completeness of original lead acquisition data:
+- **Assessed Fields**: First Name, Last Name, Email Domain, Phone, State, Country, Industry, Company, Website
+- **Methodology**: Weighted scoring using reference datasets (countries, territories, bad domains, industry cross-walk)
+- **Validation**: Cross-references against external datasets for data quality verification
+- **Output**: 0-100 percentage score indicating acquisition data completeness
+
+### **Enrichment Completeness Score (Rule-Based - Joseph's System)**
+Evaluates completeness of ZoomInfo enrichment data:
+- **Assessed Fields**: ZI Company Name, ZI Website, ZI State, ZI Country, ZI Employee Count, Segment
+- **Methodology**: Segment-aware weighted scoring with completeness validation logic
+- **Dependencies**: Industry cross-walk, territory mappings, domain validation datasets
+- **Output**: 0-100 percentage score indicating enrichment data completeness
+
+### **AI Coherence Score (AI-Powered - OpenAI GPT-4o)**
+Assesses data consistency, reliability, and logical coherence:
+- **Focus**: Cross-field validation, external knowledge verification, data consistency analysis
+- **Methodology**: Advanced prompt engineering with mandatory external validation requirements
+- **Features**: Intelligent corrections, data inferences, redundancy prevention, external knowledge citation
+- **Validation**: Website accessibility checks, free domain filtering, business logic verification
+- **Output**: 0-100 confidence score with detailed explanations, corrections, and inferences
+
+### **Final Confidence Score (Weighted Hybrid)**
+Balanced assessment combining all scoring components:
+- **Formula**: `(Acquisition × 0.15) + (Enrichment × 0.15) + (AI Coherence × 0.70)`
+- **Rationale**: Emphasizes AI coherence assessment while incorporating rule-based completeness metrics
+- **Benefits**: Balanced evaluation leveraging both rule-based precision and AI intelligence
+- **Output**: Overall confidence rating (0-100) reflecting comprehensive data quality assessment
 
 ## Analysis Methods
 
 ### 1. Single Lead Assessment
-Direct confidence scoring for individual leads with detailed AI explanations.
+Hybrid scoring combining rule-based completeness assessment with AI coherence analysis, including weighted final score.
 
 ### 2. SOQL Query Analysis  
 Bulk processing supporting complex queries:
@@ -148,23 +201,28 @@ Step-by-step workflow with partial validation support:
 1. **Parse** - Extract sheet names and column headers
 2. **Select** - Choose sheet and Lead ID column
 3. **Validate** - Verify Lead IDs with detailed valid/invalid breakdown
-4. **Analyze** - Run AI assessment on valid leads (invalid Lead IDs preserved)
-5. **Export** - Generate combined Excel report with invalid Lead IDs highlighted in red
+4. **Analyze** - Run hybrid assessment on valid leads (invalid Lead IDs preserved)
+5. **Export** - Generate combined Excel report with four-score system and highlighted invalid Lead IDs
 
 ## Excel Export Features
 
 Professional reports with RingCentral branding include:
-- **Color-coded confidence scores** (Red: 0-59, Orange: 60-79, Blue: 80-100)
-- **Original data preservation** with AI analysis appended as new columns
-- **Summary statistics** (total leads, issue percentages, average confidence)
-- **Individual lead breakdowns** with detailed AI explanations
-- **Consistent results** (cached analysis prevents AI response variability)
+- **Four-Score System**: Acquisition, Enrichment, AI Coherence, Final Confidence
+- **Differentiated color coding** (Joseph's scores: purple/orange, AI scores: blue)
+- **Complete personal/business data** (27 columns including FirstName, LastName, Phone, etc.)
+- **Original data preservation** with hybrid analysis appended as new columns
+- **Summary statistics** with weighted final score averages
+- **Individual lead breakdowns** with detailed explanations for all components
 - **Invalid Lead ID highlighting** (light red background for easy review)
 - **Complete data integrity** (all original rows preserved, even invalid ones)
 
 **Export Columns Added:**
-- `AI_Confidence_Score` - Numerical confidence rating
-- `AI_Explanation` - Bullet-point explanations with emoji indicators
+- `First Name`, `Last Name`, `Phone`, `Country`, `Title`, `Industry` - Personal/business data
+- `Acquisition_Score` - Rule-based completeness score for original data (0-100)
+- `Enrichment_Score` - Rule-based completeness score for ZoomInfo data (0-100)
+- `AI_Coherence_Score` - AI assessment of data consistency (0-100)
+- `Final_Confidence_Score` - Weighted hybrid score (15% + 15% + 70%)
+- `AI_Explanation` - Detailed explanations with external validation citations
 - `AI_Corrections` - High-confidence data fixes (JSON format)
 - `AI_Inferences` - Lower-confidence suggestions (JSON format)
 - `AI_Not_in_TAM` - Quality flag for missing enrichment
@@ -363,4 +421,4 @@ All endpoints return standardized JSON:
 - **[API Demo Video](https://drive.google.com/file/d/1G5kbyXztMqzkW44-von2Jbu0ZlHpYQ92/view?usp=sharing)** - Complete walkthrough and usage examples
 - **[Project Overview](project_breakdown.md)** - Requirements and specifications
 - **[AI Methodology](lead_data_interpretation.md)** - Scoring and assessment details
-- **[Sample Exports](https://docs.google.com/spreadsheets/d/1OCEN245W6ibXaq54XTOI43U-cL0DAXvV44UMEXX7myI/edit?usp=sharing)** - Example Excel reports (RingCentral employees only) 
+- **[Sample Exports](https://docs.google.com/spreadsheets/d/1y-y4aXOqWRyQstc8c1il3suKUsz_t2He/edit?usp=sharing&ouid=113726783832302437979&rtpof=true&sd=true)** - Example Excel reports (RingCentral employees only) 

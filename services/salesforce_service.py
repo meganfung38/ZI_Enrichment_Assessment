@@ -3,6 +3,7 @@ from config.config import Config, BAD_EMAIL_DOMAINS
 from typing import Optional
 import math
 import time
+from .joseph_wrapper import JosephScoringWrapper
 
 
 class SalesforceService:
@@ -11,6 +12,7 @@ class SalesforceService:
     def __init__(self):
         self.sf: Optional[Salesforce] = None
         self._is_connected = False
+        self.joseph_scorer = JosephScoringWrapper()
     
     def _convert_15_to_18_char_id(self, id_15):
         """Convert 15-character Salesforce ID to 18-character format"""
@@ -128,7 +130,7 @@ class SalesforceService:
         return lead_record
     
     def _analyze_lead_flags(self, lead_record):
-        """Analyze lead data and return business logic flags and email domain"""
+        """Analyze lead data and return business logic flags, email domain, and Joseph's scores"""
         # Extract values with explicit None handling
         zi_employees = lead_record.get('ZI_Employees__c')
         zi_company_name = lead_record.get('ZI_Company_Name__c')
@@ -167,10 +169,16 @@ class SalesforceService:
             has_many_employees
         )
         
+        # Calculate Joseph's scores
+        joseph_scores = self.joseph_scorer.calculate_both_scores(lead_record)
+        
         return {
             'not_in_TAM': not_in_tam,
             'suspicious_enrichment': suspicious_enrichment,
-            'email_domain': email_domain
+            'email_domain': email_domain,
+            'acquisition_completeness_score': joseph_scores['acquisition_completeness']['percentage'],
+            'enrichment_completeness_score': joseph_scores['enrichment_completeness']['percentage'],
+            'joseph_scoring_details': joseph_scores
         }
     
     def get_lead_by_id(self, lead_id):
@@ -183,7 +191,8 @@ class SalesforceService:
             query = """
             SELECT Id, Email, First_Channel__c, 
                    SegmentName__r.Name, LS_Company_Size_Range__c, Website, Company,
-                   ZI_Website__c, ZI_Company_Name__c, ZI_Employees__c
+                   ZI_Website__c, ZI_Company_Name__c, ZI_Employees__c,
+                   FirstName, LastName, Phone, Title, Industry, State, Country
             FROM Lead 
             WHERE Id = '{}'
             """.format(lead_id)
@@ -551,7 +560,8 @@ class SalesforceService:
             batch_query = f"""
             SELECT Id, Email, First_Channel__c, 
                    SegmentName__r.Name, LS_Company_Size_Range__c, Website, Company,
-                   ZI_Website__c, ZI_Company_Name__c, ZI_Employees__c
+                   ZI_Website__c, ZI_Company_Name__c, ZI_Employees__c,
+                   FirstName, LastName, Phone, Title, Industry, State, Country
             FROM Lead 
             WHERE Id IN ('{ids_string}')
             """

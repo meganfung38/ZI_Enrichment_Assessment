@@ -7,7 +7,7 @@ The original system was not equipped to handle large Excel files containing 50,0
 1. **Salesforce Connection Timeouts**: Large datasets caused connection timeouts during processing
 2. **SOQL Query Limits**: Attempting to process all leads in a single query exceeded Salesforce limits
 3. **Memory Exhaustion**: Loading entire datasets into memory caused performance issues
-4. **OpenAI Rate Limiting**: Sequential AI processing without rate limiting led to API failures
+4. **AI Rate Limiting**: Sequential AI coherence processing without rate limiting led to API failures
 5. **No Progress Tracking**: Users had no visibility into processing status for long-running operations
 
 ## Solution Overview
@@ -24,9 +24,9 @@ The original system was not equipped to handle large Excel files containing 50,0
                        │                                 │                                 │
                        ▼                                 ▼                                 ▼
             ┌──────────────────┐              ┌──────────────────┐              ┌──────────────────┐
-            │  Salesforce      │              │  AI Processing   │              │  Result          │
-            │  Data Retrieval  │              │  (50/sub-batch)  │              │  Aggregation     │
-            │  (150/batch)     │              │                  │              │                  │
+            │  Salesforce      │              │  Hybrid Scoring  │              │  Result          │
+            │  Data + Joseph's │              │  AI Coherence    │              │  Aggregation     │
+            │  Scores (150)    │              │  (50/sub-batch)  │              │  Final Scores    │
             └──────────────────┘              └──────────────────┘              └──────────────────┘
 ```
 
@@ -37,7 +37,7 @@ The original system was not equipped to handle large Excel files containing 50,0
 #### New Method: `analyze_leads_from_ids_batch_optimized()`
 
 **Key Features:**
-- **Configurable Batch Sizes**: Separate settings for Salesforce queries and AI processing
+- **Configurable Batch Sizes**: Separate settings for Salesforce queries and AI coherence processing
 - **Connection Management**: Automatic connection refresh between batches
 - **Progress Callbacks**: Real-time progress tracking via callback functions
 - **Error Recovery**: Continues processing even if individual batches fail
@@ -49,11 +49,11 @@ The original system was not equipped to handle large Excel files containing 50,0
 for batch_num in range(total_batches):
     batch_leads = self._analyze_lead_batch(batch_lead_ids)
     
-    # Secondary batching for AI processing
+    # Secondary batching for AI coherence processing
     if include_ai_assessment and ai_batch_size < len(batch_leads):
         ai_batches = math.ceil(len(batch_leads) / ai_batch_size)
         for ai_batch_num in range(ai_batches):
-            # Process AI assessments with rate limiting
+            # Process AI coherence assessments with rate limiting
             process_ai_batch(ai_batch_leads)
             time.sleep(0.1)  # Rate limiting delay
 ```
@@ -77,7 +77,7 @@ for batch_num in range(total_batches):
 - **Endpoint**: `POST /excel/analyze-batch-optimized`
 - **Configurable Parameters**:
   - `batch_size`: Salesforce batch size (50-200)
-  - `ai_batch_size`: AI processing batch size (10-100)
+  - `ai_batch_size`: AI coherence processing batch size (10-100)
 - **Enhanced Metrics**: Detailed performance and success rate reporting
 
 ### 3. Configuration Management (`config.py`)
@@ -85,7 +85,7 @@ for batch_num in range(total_batches):
 #### New Environment Variables
 ```bash
 BATCH_SIZE_SALESFORCE=150       # Salesforce query batch size
-BATCH_SIZE_AI=50               # AI processing batch size
+BATCH_SIZE_AI=50               # AI coherence processing batch size
 BATCH_SIZE_VALIDATION=150      # Lead validation batch size
 LARGE_DATASET_THRESHOLD=1000   # Auto-batch threshold
 BATCH_DELAY_MS=50             # Inter-batch delay
@@ -274,4 +274,4 @@ The implemented batch processing solution transforms the system's capability to 
 - **Monitoring**: Comprehensive progress tracking and metrics
 - **Flexibility**: Configurable batch sizes and delays
 
-This implementation ensures that Excel files containing tens of thousands of Lead IDs can be processed without timeouts, connection failures, or memory issues, while maintaining high data quality and AI assessment accuracy. 
+This implementation ensures that Excel files containing tens of thousands of Lead IDs can be processed without timeouts, connection failures, or memory issues, while maintaining high data quality through the hybrid scoring system (rule-based completeness + AI coherence assessment). 

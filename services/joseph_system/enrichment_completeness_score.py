@@ -3,7 +3,7 @@ import numpy as np
 
 import logging
 
-from .completeness_dependency_loader import CompletenessDependencyLoader
+from completeness_dependency_loader import CompletenessDependencyLoader
 
 
 class EnrichmentCompletenessScorer:

@@ -5,7 +5,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Comprehensive list of bad email domains
-# Combines existing domains from codebase with domains from bad_domains_latest_2025_01_27.csv
 BAD_EMAIL_DOMAINS = {
     # Existing domains from codebase
     'gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'icloud.com',

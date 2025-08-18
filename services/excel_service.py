@@ -42,7 +42,7 @@ class ExcelService:
         
         # Add title and metadata
         current_row = 1
-        ws.merge_cells(f'A{current_row}:R{current_row}')
+        ws.merge_cells(f'A{current_row}:AA{current_row}')
         ws[f'A{current_row}'] = "ZoomInfo Lead Quality Analysis Report"
         ws[f'A{current_row}'].font = self.title_font
         ws[f'A{current_row}'].alignment = self.center_alignment
@@ -61,10 +61,11 @@ class ExcelService:
         
         # Add headers for all lead data fields plus assessment outputs
         headers = [
-            "Lead ID", "Email", "First Channel", "Segment Name", "Company Size Range",
+            "Lead ID", "First Name", "Last Name", "Phone", "Country", "Title", "Industry",
+            "Email", "First Channel", "Segment Name", "Company Size Range",
             "Website", "Company", "ZI Website", "ZI Company Name", "ZI Employees", "Email Domain",
-            "Not in TAM", "Suspicious Enrichment", "Confidence Score", 
-            "Explanation", "Corrections", "Inferences", "AI Status"
+            "Not in TAM", "Suspicious Enrichment", "Acquisition Score", "Enrichment Score", 
+            "AI Coherence Score", "Final Confidence Score", "Explanation", "Corrections", "Inferences", "AI Status"
         ]
         
         for col, header in enumerate(headers, 1):
@@ -156,6 +157,15 @@ class ExcelService:
         
         return start_row + 1
     
+    def _calculate_final_confidence_score(self, acquisition_score, enrichment_score, ai_coherence_score):
+        """Calculate weighted final confidence score with emphasis on AI coherence"""
+        if not all([acquisition_score, enrichment_score, ai_coherence_score]):
+            return ''
+        
+        # Weighted formula: 15% acquisition + 15% enrichment + 70% AI coherence  
+        final_score = (acquisition_score * 0.15) + (enrichment_score * 0.15) + (ai_coherence_score * 0.70)
+        return round(final_score, 1)
+    
     def _add_lead_row(self, ws, lead, row):
         """Add a single lead's data to the worksheet"""
         # Extract confidence assessment data
@@ -176,6 +186,12 @@ class ExcelService:
         # Data for each column (matching header order)
         row_data = [
             lead.get('Id', ''),                          # Lead ID
+            lead.get('FirstName', ''),                   # First Name
+            lead.get('LastName', ''),                    # Last Name
+            lead.get('Phone', ''),                       # Phone
+            lead.get('Country', ''),                     # Country
+            lead.get('Title', ''),                       # Title
+            lead.get('Industry', ''),                    # Industry
             lead.get('Email', ''),                       # Email
             lead.get('First_Channel__c', ''),            # First Channel
             lead.get('SegmentName', ''),                 # Segment Name
@@ -188,7 +204,14 @@ class ExcelService:
             lead.get('email_domain', ''),                # Email Domain
             'Yes' if lead.get('not_in_TAM') else 'No',   # Not in TAM
             'Yes' if lead.get('suspicious_enrichment') else 'No',  # Suspicious Enrichment
-            confidence_score,                            # Confidence Score
+            lead.get('acquisition_completeness_score', ''),  # Acquisition Score (Joseph's)
+            lead.get('enrichment_completeness_score', ''),   # Enrichment Score (Joseph's)
+            confidence_score,                            # AI Coherence Score
+            self._calculate_final_confidence_score(
+                lead.get('acquisition_completeness_score'),
+                lead.get('enrichment_completeness_score'),
+                confidence_score if isinstance(confidence_score, (int, float)) else None
+            ),                                           # Final Confidence Score (Weighted)
             explanation_text,                            # Explanation
             corrections_text,                            # Corrections
             inferences_text,                             # Inferences
@@ -200,13 +223,26 @@ class ExcelService:
             cell.border = self.border
             
             # Special formatting for certain columns with RingCentral colors
-            if col in [12, 13]:  # Boolean flags (Not in TAM, Suspicious Enrichment)
+            if col in [18, 19]:  # Boolean flags (Not in TAM, Suspicious Enrichment) - now columns 18, 19
                 cell.alignment = self.center_alignment
                 if value == 'Yes':
                     # Light red background for issues (softer than pure red)
                     cell.fill = PatternFill(start_color="FFE6E6", end_color="FFE6E6", fill_type="solid")
                     cell.font = Font(bold=True, color=self.rc_warm_black)
-            elif col == 14:  # Confidence score with RingCentral color scheme
+            elif col in [20, 21]:  # Joseph's scores (Acquisition, Enrichment) - now columns 20, 21
+                cell.alignment = self.center_alignment
+                cell.font = Font(bold=True, color="FFFFFF")
+                if isinstance(value, (int, float)) and value > 0:
+                    if value >= 80:
+                        # High score: RingCentral Purple (dark purple)
+                        cell.fill = PatternFill(start_color="663399", end_color="663399", fill_type="solid")
+                    elif value >= 60:
+                        # Medium score: RingCentral Orange
+                        cell.fill = PatternFill(start_color=self.rc_orange, end_color=self.rc_orange, fill_type="solid")
+                    else:
+                        # Low score: Muted red with white text
+                        cell.fill = PatternFill(start_color="DC3545", end_color="DC3545", fill_type="solid")
+            elif col in [22, 23]:  # AI Coherence (22) and Final Confidence (23) scores with RingCentral color scheme
                 cell.alignment = self.center_alignment
                 cell.font = Font(bold=True, color="FFFFFF")
                 if isinstance(value, (int, float)) and value > 0:
@@ -219,30 +255,39 @@ class ExcelService:
                     else:
                         # Low confidence: Muted red with dark text
                         cell.fill = PatternFill(start_color="DC3545", end_color="DC3545", fill_type="solid")
-            elif col in [15, 16, 17]:  # Text fields that might be long (Explanation, Corrections, Inferences)
+            elif col in [24, 25, 26]:  # Text fields that might be long (Explanation, Corrections, Inferences) - now columns 24, 25, 26
                 cell.alignment = self.wrap_alignment
     
     def _auto_adjust_columns(self, ws):
         """Auto-adjust column widths based on content"""
         column_widths = {
             1: 20,   # Lead ID
-            2: 25,   # Email
-            3: 15,   # First Channel
-            4: 15,   # Segment Name
-            5: 18,   # Company Size Range
-            6: 20,   # Website
-            7: 20,   # Company
-            8: 20,   # ZI Website
-            9: 20,   # ZI Company Name
-            10: 12,  # ZI Employees
-            11: 15,  # Email Domain
-            12: 12,  # Not in TAM
-            13: 15,  # Suspicious Enrichment
-            14: 12,  # Confidence Score
-            15: 40,  # Explanation
-            16: 25,  # Corrections
-            17: 25,  # Inferences
-            18: 12   # AI Status
+            2: 15,   # First Name
+            3: 15,   # Last Name
+            4: 15,   # Phone
+            5: 12,   # Country
+            6: 15,   # Title
+            7: 15,   # Industry
+            8: 25,   # Email
+            9: 15,   # First Channel
+            10: 15,  # Segment Name
+            11: 18,  # Company Size Range
+            12: 20,  # Website
+            13: 20,  # Company
+            14: 20,  # ZI Website
+            15: 20,  # ZI Company Name
+            16: 12,  # ZI Employees
+            17: 15,  # Email Domain
+            18: 12,  # Not in TAM
+            19: 15,  # Suspicious Enrichment
+            20: 12,  # Acquisition Score
+            21: 12,  # Enrichment Score
+            22: 12,  # AI Coherence Score
+            23: 12,  # Final Confidence Score
+            24: 40,  # Explanation
+            25: 25,  # Corrections
+            26: 25,  # Inferences
+            27: 12   # AI Status
         }
         
         for col, width in column_widths.items():
@@ -456,9 +501,12 @@ class ExcelService:
             total_confidence_score = 0
             successful_ai_assessments = 0
             
-            # Add analysis columns
+            # Add analysis columns - updated to include hybrid scoring system
             analysis_columns = {
-                'AI_Confidence_Score': [],
+                'Acquisition_Score': [],
+                'Enrichment_Score': [],
+                'AI_Coherence_Score': [],
+                'Final_Confidence_Score': [],
                 'AI_Explanation': [],
                 'AI_Corrections': [],
                 'AI_Inferences': [],
@@ -527,9 +575,24 @@ class ExcelService:
                         total_confidence_score += confidence_assessment.get('confidence_score', 0)
                         successful_ai_assessments += 1
                 
-                # Confidence Score
+                # Joseph's Scores
+                acquisition_score = analysis.get('acquisition_completeness_score', '') if analysis else ''
+                enrichment_score = analysis.get('enrichment_completeness_score', '') if analysis else ''
+                analysis_columns['Acquisition_Score'].append(acquisition_score)
+                analysis_columns['Enrichment_Score'].append(enrichment_score)
+                
+                # AI Coherence Score
                 confidence_score = confidence_assessment.get('confidence_score', '') if confidence_assessment else ''
-                analysis_columns['AI_Confidence_Score'].append(confidence_score)
+                analysis_columns['AI_Coherence_Score'].append(confidence_score)
+                
+                # Final Confidence Score (weighted combination)
+                final_score = ''
+                if (acquisition_score and enrichment_score and confidence_score and 
+                    isinstance(acquisition_score, (int, float)) and 
+                    isinstance(enrichment_score, (int, float)) and 
+                    isinstance(confidence_score, (int, float))):
+                    final_score = round((acquisition_score * 0.15) + (enrichment_score * 0.15) + (confidence_score * 0.70), 1)
+                analysis_columns['Final_Confidence_Score'].append(final_score)
                 
                 # Explanation
                 explanation_bullets = confidence_assessment.get('explanation_bullets', []) if confidence_assessment else []

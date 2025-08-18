@@ -261,4 +261,128 @@ select:focus {
     outline: none;
     border-color: #0684BC;
     box-shadow: 0 0 0 3px rgba(6, 132, 188, 0.1);
+}
+
+/* Collapsible Toggle Styles - Minimal Theme */
+.lead-container {
+    margin-bottom: 0;
+}
+
+.lead-container + .lead-container {
+    margin-top: 2em;
+}
+
+/* Summary container has no special spacing */
+.summary-container + .lead-container {
+    margin-top: 2em;
+}
+
+/* Alternating RingCentral theme colors with pop effect */
+.lead-container-even {
+    background-color: #fff3e0;
+    padding: 12px;
+    border-radius: 8px;
+    border: 2px solid #FF7A00;
+    box-shadow: 0 4px 8px rgba(255, 122, 0, 0.2);
+}
+
+.lead-container-odd {
+    background-color: #e3f2fd;
+    padding: 12px;
+    border-radius: 8px;
+    border: 2px solid #0684BC;
+    box-shadow: 0 4px 8px rgba(6, 132, 188, 0.2);
+}
+
+.lead-header {
+    font-weight: bold;
+    margin: 0;
+    color: #002855;
+}
+
+.toggle-section {
+    margin: 0;
+}
+
+.toggle-header {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-weight: bold;
+    color: #002855;
+    width: 100%;
+    text-align: left;
+    font-size: inherit;
+    font-family: inherit;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 0;
+}
+
+.toggle-header:hover {
+    text-decoration: underline;
+}
+
+.toggle-content {
+    display: none;
+    margin: 0;
+}
+
+.toggle-content.active {
+    display: block;
+}
+
+.toggle-icon {
+    font-size: 12px;
+    margin-left: 10px;
+}
+
+.data-row {
+    margin: 0;
+}
+
+.flag-item {
+    margin: 0;
+}
+
+.score-section {
+    margin: 0;
+}
+
+.score-title {
+    font-weight: bold;
+    margin: 0;
+}
+
+.score-explanation {
+    margin: 0;
+}
+
+.ai-bullets {
+    margin: 0;
+}
+
+.ai-bullet {
+    margin: 0;
+}
+
+.corrections, .inferences {
+    margin: 0;
+}
+
+.correction-item, .inference-item {
+    margin: 0;
+    padding: 0;
+}
+
+.final-score {
+    font-weight: bold;
+    margin: 0;
+    padding: 0;
+}
+
+.final-score-bold {
+    font-weight: bold !important;
 } 

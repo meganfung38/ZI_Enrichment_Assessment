@@ -227,15 +227,19 @@ def get_lead_confidence_assessment(lead_id):
                 "lead_data": lead_data  # Still return the lead data even if AI fails
             }), 500
         
-        # Return successful response with both lead data and assessment
+        # Return successful response with hybrid scoring
         return jsonify({
             "status": "success",
-            "message": "Lead confidence assessment completed successfully",
+            "message": "Hybrid lead assessment completed successfully",
             "lead_data": lead_data,
-            "confidence_assessment": assessment,
+            "confidence_assessment": assessment,  # AI coherence assessment
+            "acquisition_completeness_score": lead_data.get('acquisition_completeness_score', 0),
+            "enrichment_completeness_score": lead_data.get('enrichment_completeness_score', 0),
+            "joseph_scoring_details": lead_data.get('joseph_scoring_details', {}),
             "processing_info": {
                 "salesforce_message": sf_message,
-                "ai_message": ai_message
+                "ai_message": ai_message,
+                "scoring_method": "hybrid_joseph_ai"
             }
         })
         

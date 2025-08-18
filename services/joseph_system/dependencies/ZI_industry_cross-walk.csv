@@ -1,0 +1,181 @@
+RC Re-Mapped Sector,RC Re-Mapped Industry,RC Re-Mapped Sub-Industry,Zoominfo New Industry Name,Zoominfo New Sub Industry Name
+Communications & Media,Communications,Telecommunications,Telecommunications,
+Communications & Media,Communications,Cable & Satellite,Telecommunications,Cable & Satellite
+Communications & Media,Communications,"Internet Service Providers, Website Hosting & Internet-related Services",Telecommunications,"Internet Service Providers, Website Hosting & Internet-related Services"
+Communications & Media,Communications,Telephony & Wireless,Telecommunications,Telephony & Wireless
+Professional & Consumer Services,Professional Services,Advertising & Marketing,Business Services,Advertising & Marketing
+"Transportation, Travel & Leisure",Entertainment,Movie Theaters,Hospitality,Movie Theaters
+Public Sector,State & Local,Libraries,Hospitality,Libraries
+Retail & Consumer Products,Retail,Restaurants,Hospitality,Restaurants
+Communications & Media,Media,Media,Media & Internet,
+Communications & Media,Media,Broadcasting,Media & Internet,Broadcasting
+Communications & Media,Media,Music Production & Services,Media & Internet,Music Production & Services
+Communications & Media,Media,Newspapers & News Services,Media & Internet,Newspapers & News Services
+Communications & Media,Media,Publishing,Media & Internet,Publishing
+Communications & Media,Media,Social Networks,Media & Internet,Social Networks
+Communications & Media,Media,Ticket Sales,Media & Internet,Ticket Sales
+Construction & Real Estate,Real Estate,Real Estate,Real Estate,no new sub industry
+Construction & Real Estate,Construction,Construction,Construction,
+Construction & Real Estate,Construction,Civil Engineering Construction,Construction,Civil Engineering Construction
+Construction & Real Estate,Construction,Commercial & Residential Construction,Construction,Commercial & Residential Construction
+Energy & Utilities,Energy,Energy,"Energy, Utilities & Waste",
+Energy & Utilities,Utilities,"Electricity, Oil & Gas","Energy, Utilities & Waste","Electricity, Oil & Gas"
+Energy & Utilities,Utilities,"Waste Treatment, Environmental Services & Recycling","Energy, Utilities & Waste","Waste Treatment, Environmental Services & Recycling"
+Energy & Utilities,Energy,Oil & Gas Exploration & Services,"Energy, Utilities & Waste",Oil & Gas Exploration & Services
+Public Sector,State & Local,Water Treatment,"Energy, Utilities & Waste",Water Treatment
+Financial Services,Banking,Banking,Finance,
+Financial Services,Banking,Banking,Finance,Banking
+Financial Services,Banking,Lending & Brokerage,Finance,Lending & Brokerage
+Financial Services,Banking,Credit Cards & Transaction Processing,Finance,Credit Cards & Transaction Processing
+Financial Services,Investment Management,Investment Banking,Finance,Investment Banking
+Financial Services,Investment Management,Venture Capital & Private Equity,Finance,Venture Capital & Private Equity
+Financial Services,Insurance,Insurance,Insurance,no new sub industry
+Financial Services,Banking,Debt Collection,Business Services,Debt Collection
+Healthcare,Providers,Home Healthcare Services,Healthcare Services,
+Healthcare,Providers,Ambulance Services,Healthcare Services,Ambulance Services
+Healthcare,Providers,Blood & Organ Banks,Healthcare Services,Blood & Organ Banks
+Healthcare,Providers,Medical Laboratories & Imaging Centers,Healthcare Services,Medical Laboratories & Imaging Centers
+Healthcare,Providers,Long Term Care Services,Healthcare Services,Elderly Care Services
+Healthcare,Providers,Mental Health & Rehabilitation Facilities,Healthcare Services,Mental Health & Rehabilitation Facilities
+Healthcare,Providers,Ambulatory & Outpatient Services,Hospitals & Physicians Clinics,
+Healthcare,Providers,Medical Practices & Clinics,Hospitals & Physicians Clinics,Physicians Clinics
+Healthcare,Providers,Hospitals & Physician Clinics,Hospitals & Physicians Clinics,Medical & Surgical Hospitals
+Healthcare,Providers,Medical Specialty Groups,Hospitals & Physicians Clinics,Medical Specialists
+Healthcare,Life Sciences,Health & Nutrition Products,Manufacturing,Health & Nutrition Products
+Healthcare,Life Sciences,Medical Devices & Equipment,Manufacturing,Medical Devices & Equipment
+Healthcare,Life Sciences,Pharmaceuticals,Manufacturing,Pharmaceuticals
+Retail & Consumer Products,Retail,"Food, Drug, Convenience",Retail,"Vitamins, Supplements & Health Stores"
+Retail & Consumer Products,Retail,"Food, Drug, Convenience",Retail,Drug Stores & Pharmacies
+High-tech,Software & Computing Services,Healthcare Software,Software,Healthcare Software
+High-tech,Software & Computing Services,Custom software & IT services,Business Services,Custom Software & IT Services
+High-tech,Hardware,Computer equipment & peripherals,Manufacturing,Computer Equipment & Peripherals
+High-tech,Hardware,Electronics,Manufacturing,Electronics
+High-tech,Software & Computing services,Data collection & Internet portals,Media & Internet,Data Collection & Internet Portals
+High-tech,Software & Computing services,Software & Computing services,Software,
+High-tech,Software & Computing services,Mobile app development,Software,Mobile App Developement
+High-tech,Software & Computing services,Business intelligence software,Software,Business Intelligence (BI) Software
+High-tech,Software & Computing services,Content & Collaboration Software,Software,Content & Collaboration Software
+High-tech,Software & Computing services,Customer Relationship Management (CRM) Software,Software,Customer Relationship Management (CRM) Software
+High-tech,Software & Computing services,Database & File Management Software,Software,Database & File Management Software
+High-tech,Software & Computing services,Engineering Software,Software,Engineering Software
+High-tech,Software & Computing services,Financial Software,Software,Financial Software
+High-tech,Software & Computing services,Human Resources Software,Software,Human Resources Software
+High-tech,Software & Computing services,Legal Software,Software,Legal Software
+High-tech,Software & Computing services,Networking Software,Software,Networking Software
+High-tech,Software & Computing services,Supply Chain Management (SCM) Software,Software,Supply Chain Management (SCM) Software
+High-tech,Software & Computing services,Security Software,Software,Security Software
+High-tech,Software & Computing services,"Multimedia, Games & Graphics Software",Software,"Multimedia, Games & Graphics Software"
+High-tech,Software & Computing services,Enterprise Resource Planning (ERP) Software,Software,Enterprise Resource Planning (ERP) Software
+High-tech,Software & Computing services,Storage & System Management Software,Software,Storage & System Management Software
+Professional & Consumer Services,Professional Services,Printing,Business Services,Commercial Printing
+Retail & Consumer Products,Retail,Auto Dealers and Service,Consumer Services,Automotive Service & Collision Repair
+Healthcare,Providers,Medical Practices ,Hospitals & Physicians Clinics,Dental Offices
+Manufacturing,Discrete Manufacturing,Discrete Manufacturing,Manufacturing,
+Manufacturing,Discrete Manufacturing,Boats & Submarines,Manufacturing,Boats & Submarines
+Manufacturing,Discrete Manufacturing,Building materials,Manufacturing,Building Materials
+Manufacturing,Discrete Manufacturing,Motor vehicles,Manufacturing,Motor Vehicles
+Manufacturing,Discrete Manufacturing,Automotive parts,Manufacturing,Automotive Parts
+Manufacturing,Process Manufacturing,Chemicals & related products,Manufacturing,Chemicals & Related Products
+Manufacturing,Discrete Manufacturing,Furniture,Manufacturing,Furniture
+Manufacturing,Discrete Manufacturing,Glass & Clay,Manufacturing,Glass & Clay
+Manufacturing,Discrete Manufacturing,Household Goods,Manufacturing,Household Goods
+Manufacturing,Discrete Manufacturing,Industrial Machinery & Equipment,Manufacturing,Industrial Machinery & Equipment
+Manufacturing,Process Manufacturing,Pulp & Paper,Manufacturing,Pulp & Paper
+Manufacturing,Discrete Manufacturing,Photographic & Optical Equipment,Manufacturing,Photographic & Optical Equipment
+Manufacturing,Discrete Manufacturing,"Plastic, Packaging & Containers",Manufacturing,"Plastic, Packaging & Containers"
+Manufacturing,Discrete Manufacturing,Tires & Rubber,Manufacturing,Tires & Rubber
+Manufacturing,Discrete Manufacturing,Telecommunication Equipment,Manufacturing,Telecommunication Equipment
+Manufacturing,Discrete Manufacturing,Test & Measurement Equipment,Manufacturing,Test & Measurement Equipment
+Manufacturing,Discrete Manufacturing,"Hand, Power & Lawn-care Tools",Manufacturing,"Hand, Power & Lawn-care Tools"
+Manufacturing,Process Manufacturing,Wire & Cable,Manufacturing,Wire & Cable
+Manufacturing,Discrete Manufacturing,Aerospace & Defense,Manufacturing,Aerospace & Defense
+Retail & Consumer Products,Retail,Auto Dealers and Service,Retail,Automobile Dealers
+Retail,Retail,Specialty,Retail,Automobile Parts Stores
+Natural Resources,Agriculture,Agriculture,Agriculture,
+Natural Resources,Agriculture,Animals & Livestock,Agriculture,Animals & Livestock
+Natural Resources,Agriculture,Crops,Agriculture,Crops
+Natural Resources,Agriculture,Forestry,Agriculture,Forestry
+Natural Resources,Minerals & Mining,Minerals & Mining,Minerals & Mining,Minerals & Mining
+Professional & Consumer services,Professional Services,Holding Companies & Conglomerates,Holding Companies & Conglomerates,no new sub industry
+Professional & Consumer services,Professional Services,Law Firms & Legal Services,Law Firms & Legal Services,no new sub industry
+Professional & Consumer services,Professional Services,Business services,Business Services,
+Professional & Consumer services,Professional Services,Accounting Services,Business Services,Accounting Services
+Professional & Consumer services,Professional Services,Call Centers & Business Centers,Business Services,Call Centers & Business Centers
+Professional & Consumer services,Professional Services,Management Consulting,Business Services,Management Consulting
+Professional & Consumer services,Professional Services,Information & Document Management,Business Services,Information & Document Management
+Professional & Consumer services,Professional Services,Multimedia & Graphic Design,Business Services,Multimedia & Graphic Design
+Professional & Consumer services,Professional Services,HR & Staffing,Business Services,HR & Staffing
+Professional & Consumer services,Professional Services,Facilities Management & Commercial Cleaning,Business Services,Facilities Management & Commercial Cleaning
+Professional & Consumer services,Professional Services,Translation & Linguistic Services,Business Services,Translation & Linguistic Services
+Professional & Consumer services,Professional Services,Research & Development,Business Services,Research & Development
+Professional & Consumer services,Professional Services,Security Products & Services,Business Services,Security Products & Services
+Professional & Consumer services,Professional Services,"Architecture, Engineering & Design",Construction,"Architecture, Engineering & Design"
+Professional & Consumer services,Consumer Services,Consumer services,Consumer Services,
+Professional & Consumer services,Consumer Services,Funeral Homes & Funeral Related Services,Consumer Services,Funeral Homes & Funeral Related Services
+Professional & Consumer services,Consumer Services,Landscape Services,Consumer Services,Landscape Services
+Professional & Consumer services,Professional Services,Cleaning Services,Consumer Services,Cleaning Services
+Professional & Consumer services,Consumer Services,Photography Studio,Consumer Services,Photography Studio
+Professional & Consumer services,Consumer Services,Repair Services,Consumer Services,Repair Services
+Professional & Consumer services,Consumer Services,Weight & Health Management,Consumer Services,Weight & Health Management
+Education,K-12,K-12,Education,K-12 Schools
+Professional & Consumer services,Consumer Services,Veterinary Services,Healthcare Services,Veterinary Services
+Public Sector ,Government,Government,Government,
+Public Sector ,Federal ,Federal ,Government,Federal
+Public Sector ,State & Local,Local,Government,Local
+Public Sector ,State & Local,State,Government,State
+Public Sector ,Federal ,Tribal Nations ,Government,Tribal Nations
+Nonprofit,Nonprofit,Nonprofit,Organizations,
+Nonprofit,Charitable Organizations ,Charitable Organizations ,Organizations,Non-Profit & Charitable Organizations 
+Nonprofit,Membership Organizations ,Membership Organizations ,Organizations,Membership Organizations
+Nonprofit,Religious Organizations ,Religious Organizations ,Organizations,Religious Organizations
+Public Sector,State & Local ,Chamber of Commerce ,Business Services,Chambers of Commerce
+Education ,Education ,Child Care & Preschool,Consumer Services,Childcare
+Education ,Education ,Vocational Schools ,Consumer Services,Barber Shops & Beauty Salons
+Education,Education,Education,Education,
+Education,Training ,Training ,Education,Training
+Education ,Higher Education ,Higher Education,Education,Colleges & Universities
+Public Sector ,State & Local,Museums & Art Galleries,Hospitality,Museums & Art Galleries
+Public Sector ,State & Local,Zoos & National Parks,Hospitality,Zoos & National Parks
+Retail & Consumer Products,Retail,Restaurants,Business Services,Food Service
+Retail & Consumer Products,Consumer Products,Appliances,Manufacturing,Appliances
+Retail & Consumer Products,Consumer Products,Cleaning Products,Manufacturing,Cleaning Products
+Retail & Consumer Products,Consumer Products,"Cosmetics, Beauty Supply & Personal Care Products",Manufacturing,"Cosmetics, Beauty Supply & Personal Care Products"
+Retail & Consumer Products,Consumer Products,Food & Beverage,Manufacturing,Food & Beverage
+Retail & Consumer Products,Consumer Products,Pet Products,Manufacturing,Pet Products
+Retail & Consumer Products,Consumer Products,Sporting Goods,Manufacturing,Sporting Goods
+Retail & Consumer Products,Consumer Products,Toys & Games,Manufacturing,Toys & Games
+Retail & Consumer Products,Consumer Products,Watches & Jewelry,Manufacturing,Watches & Jewelry
+Retail & Consumer Products,Consumer Products,Textiles & Apparel,Manufacturing,Textiles & Apparel
+Retail & Consumer Products,Retail,Retail,Retail,
+Retail & Consumer Products,Retail,Specialty,Retail,Auctions
+Retail & Consumer Products,Retail,Specialty,Retail,"Record, Video & Book Stores"
+Retail & Consumer Products,Retail,Specialty,Retail,Apparel & Accessories Retail
+Retail & Consumer Products,Retail,Specialty,Retail,Consumer Electronics & Computers Retail
+Retail & Consumer Products,Retail,"Food, Drug, Convenience",Retail,"Convenience Stores, Gas Stations & Liquor Stores"
+Retail & Consumer Products,Retail,Specialty,Retail,"Department Stores, Shopping Centers & Superstores"
+Retail & Consumer Products,Retail,Specialty,Retail,Furniture
+Retail & Consumer Products,Retail,Specialty,Retail,"Flowers, Gifts & Specialty Stores"
+Retail & Consumer Products,Retail,"Food, Drug, Convenience",Retail,Grocery Retail
+Retail & Consumer Products,Retail,Specialty,Retail,Home Improvement & Hardware Retail
+Retail & Consumer Products,Retail,Specialty,Retail,Jewelry & Watch Retail
+Retail & Consumer Products,Retail,Specialty,Retail,Office Products Retail & Distribution
+Retail & Consumer Products,Retail,Specialty,Retail,Pet Products
+Retail & Consumer Products,Retail,Specialty,Retail,"Other Rental Stores (Furniture, A/V, Construction & Industrial Equipment)"
+Retail & Consumer Products,Retail,Specialty,Retail,Sporting & Recreational Equipment Retail
+Retail & Consumer Products,Retail,Specialty,Retail,Toys & Games
+"Transportation, Travel & Leisure",Transportation,Transportation,Transportation,
+"Transportation, Travel & Leisure",Travel,"Airlines, Airports & Air Services",Transportation,"Airlines, Airports & Air Services"
+"Transportation, Travel & Leisure",Transportation,Freight & Logistics Services,Transportation,Freight & Logistics Services
+"Transportation, Travel & Leisure",Transportation,Marine Shipping & Transportation,Transportation,Marine Shipping & Transportation
+"Transportation, Travel & Leisure",Transportation,"Trucking, Moving & Storage",Transportation,"Trucking, Moving & Storage"
+"Transportation, Travel & Leisure",Travel,"Rail, Bus & Taxi",Transportation,"Rail, Bus & Taxi"
+"Transportation, Travel & Leisure",Travel,Car & Truck Rental,Consumer Services,Car & Truck Rental
+"Transportation, Travel & Leisure",Leisure,Leisure,Hospitality,
+"Transportation, Travel & Leisure",Leisure,Cultural & Informational Centers,Hospitality,Cultural & Informational Centers
+"Transportation, Travel & Leisure",Leisure,Fitness & Dance Facilities,Hospitality,Fitness & Dance Facilities
+"Transportation, Travel & Leisure",Leisure,Gambling & Gaming,Hospitality,Gambling & Gaming
+"Transportation, Travel & Leisure",Travel,Lodging & Resorts,Hospitality,Lodging & Resorts
+"Transportation, Travel & Leisure",Leisure,Performing Arts Theaters,Hospitality,Performing Arts Theaters
+"Transportation, Travel & Leisure",Leisure,Sports Teams & Leagues,Hospitality,Sports Teams & Leagues
+"Transportation, Travel & Leisure",Travel,Travel Agencies & Services,Hospitality,Travel Agencies & Services
+"Transportation, Travel & Leisure",Leisure,"Amusement Parks, Arcades & Attractions",Hospitality,"Amusement Parks, Arcades & Attractions"

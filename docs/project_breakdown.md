@@ -29,6 +29,12 @@
 | SFDC Column | Query ID  |
 | :---- | :---- |
 | *Demand Funnel : Lead : Lead ID* | Id |
+| *First Name* | FirstName |
+| *Last Name* | LastName |
+| *Phone* | Phone |
+| *Country* | Country |
+| *Title* | Title |
+| *Industry*  | Industry |
 | *Demand Funnel : Lead : Email (input information for enrichment)*  | Email |
 | *RTLM Channel* | FIrst\_Channel\_\_c  |
 | *Segment Name* | SegmentName\_\_r.Name |
@@ -46,7 +52,9 @@
 | not\_in\_TAM ZI\_Employees\_\_c \> 100 but ZI\_Company\_Name\_\_c NOT Populated | Accounts in the RC TAM (total addressable market) base include all accounts with 100+ employees This account should be enriched with an account name or is being incorrectly enriched for employee number |
 | suspicious\_enrichment Email has free email domain and Website NOT POPULATED and ZI\_Company\_Name\_\_c POPULATED and ZI\_Employees\_\_c \> 100 | Why are accounts with ambiguous email domains and no websites being enriched with an Account name (company) and other ZI data?  |
 
-2. Verify Data Accuracy \+ Information Discovery    
+2. Use Joseph’s Rule Based System   
+* Validate and compute scores for acquisition and enrichment completeness  
+3. Verify Data Accuracy \+ Information Discovery    
 * Inspect Website and ZI\_Employees\_\_c  
   * Try to populate ZI\_Company\_Name\_\_c for RC TAM base  
 * Inspect Email  
@@ -58,14 +66,15 @@
 
     
 
-3. Build a Confidence Model   
+4. Build a Confidence Model   
 * Design either a rule based system, ML model, or prompt to LLM to:   
   * Assess freshness of data  
   * Compared against other trusted sources   
   * Evaluate internal consistency   
   * Incorporate outcome history, if applicable  
 * Output a confidence score (%) for each record or data point   
-4. Explainability   
+  * Weighted scoring: 0.15 \* (acquisition completeness) \+ 0.15 \* (enrichment completeness) \+ 0.7 \* (ai coherence assessment)   
+5. Explainability   
 * Provide clear and concise explanations for why a particular confidence level was assigned  
 * Explanation layer should help build trust in the system and enable sales or operation teams to take actions accordingly  
 * A correction for incorrect fields
