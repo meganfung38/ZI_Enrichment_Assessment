@@ -22,6 +22,8 @@ Access the web interface at `http://localhost:5000/ui`
 
 📹 **[Watch the API Demo](https://drive.google.com/file/d/1G5kbyXztMqzkW44-von2Jbu0ZlHpYQ92/view?usp=sharing)** - Complete walkthrough of the tool's features and workflow
 
+📹 **[Enhanced System Demo](https://drive.google.com/file/d/1zdAFfYiJeU7a5aXhsLFrf-LWJX-ZAHLh/view?usp=sharing)** - Demonstration of the system enhanced with Joseph's rule-based scoring system
+
 ## Key Features
 
 🧠 **Hybrid Scoring System**

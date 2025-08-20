@@ -41,6 +41,8 @@ Access the web interface at `http://localhost:5000/ui`
 
 📹 **[Watch the Complete Demo](https://drive.google.com/file/d/1G5kbyXztMqzkW44-von2Jbu0ZlHpYQ92/view?usp=sharing)** - See the API in action with step-by-step usage examples
 
+📹 **[Enhanced System Demo](https://drive.google.com/file/d/1zdAFfYiJeU7a5aXhsLFrf-LWJX-ZAHLh/view?usp=sharing)** - Demonstration of the system enhanced with Joseph's rule-based scoring system
+
 ## Architecture
 
 ### Core Services
